@@ -1,16 +1,27 @@
-# silex
+Secure Messaging App (Flutter)
 
-A new Flutter project.
+This repository contains a privacy-focused mobile messaging application developed with Flutter for Android and iOS. The project is designed around security-first principles, with end-to-end encryption (E2EE) enabled by default.
 
-## Getting Started
+The cryptographic model is inspired by the Signal protocol, ensuring that message content is encrypted on the client device and can only be decrypted by the intended recipient. The backend operates under a zero-trust model, acting exclusively as a transport and storage layer for encrypted data, without access to private keys or plaintext messages.
 
-This project is a starting point for a Flutter application.
+User authentication is performed via phone number verification using one-time passwords (OTP). Cryptographic identities are generated locally on the device and are strictly separated from authentication mechanisms.
 
-A few resources to get you started if this is your first Flutter project:
+Core Features
 
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
+Cross-platform mobile app built with Flutter
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+End-to-end encrypted one-to-one messaging
+
+Signal-inspired key management and session establishment
+
+Client-side encryption and decryption
+
+Phone number authentication via OTP
+
+Real-time communication using WebSockets
+
+Server-side storage of encrypted messages only
+
+Project Scope
+
+This project serves as an educational and research-oriented implementation of secure messaging concepts and provides a solid foundation for further development, such as group messaging, multi-device support, and encrypted backups.
