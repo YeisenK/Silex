@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../models/mock_data.dart';
+import '../theme/app_theme.dart';
 import 'chat_screen.dart';
 import 'contacts_screen.dart';
 
@@ -13,10 +14,10 @@ class ChatListScreen extends StatefulWidget {
 class _ChatListScreenState extends State<ChatListScreen> {
   int _selectedIndex = 0;
 
-  static const Color backgroundColor = Color(0xFF0F1E25);
-  static const Color cardColor = Color(0xFF162B33);
-  static const Color accentColor = Color(0xFF2AABEE);
-  static const Color textSecondary = Color(0xFF9DB2BD);
+  static const Color backgroundColor = AppTheme.backgroundPrimary;
+  static const Color cardColor = AppTheme.surfaceColor;
+  static const Color accentColor = AppTheme.accentColor;
+  static const Color textSecondary = AppTheme.textSecondary;
 
   final List<Widget> _screens = [
     const ChatsTab(),
@@ -123,14 +124,23 @@ class ChatsTab extends StatelessWidget {
                   leading: Stack(
                     children: [
                       CircleAvatar(
-                        radius: 28,
-                        backgroundColor: accentColor.withOpacity(0.15),
-                        child: Text(
-                          chat.avatar,
-                          style: const TextStyle(
-                            fontSize: 20,
-                            fontWeight: FontWeight.bold,
-                            color: accentColor,
+                        radius: 20,
+                        backgroundColor: AppTheme.surfaceColor,
+                        child: ClipOval(
+                          child: Image.asset(
+                            chat.avatar,
+                            width: 40,
+                            height: 40,
+                            fit: BoxFit.cover,
+                            errorBuilder: (context, error, stackTrace) {
+                              return Text(
+                                chat.name[0].toUpperCase(),
+                                style: const TextStyle(
+                                  color: AppTheme.accentColor,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              );
+                            },
                           ),
                         ),
                       ),
@@ -216,8 +226,8 @@ class ChatsTab extends StatelessWidget {
       ),
       floatingActionButton: const FloatingActionButton(
         backgroundColor: accentColor,
-        child: Icon(Icons.edit, color: Colors.white),
         onPressed: null,
+        child: Icon(Icons.edit, color: Colors.white),
       ),
     );
   }

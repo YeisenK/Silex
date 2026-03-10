@@ -18,7 +18,7 @@ class _ChatScreenState extends State<ChatScreen> {
   static const Color backgroundColor = Color(0xFF0F1E25);
   static const Color secondaryBackground = Color(0xFF162B33);
   static const Color inputColor = Color(0xFF1F3A44);
-  static const Color accentColor = Color(0xFF2AABEE);
+  static const Color accentColor = Color.fromARGB(255, 223, 19, 19);
   static const Color textPrimary = Colors.white;
   static const Color textSecondary = Color(0xFF9DB2BD);
 

@@ -1,4 +1,3 @@
-
 class Chat {
   final String id;
   final String name;
@@ -72,7 +71,7 @@ final List<Chat> mockChats = [
   Chat(
     id: '1',
     name: 'PopDog',
-    avatar: '../assets/avatars/popdog.jpg',
+    avatar: 'assets/avatars/popdog.jpg',
     lastMessage: 'GUAU!?',
     time: '4:30 PM',
     unreadCount: 2,
@@ -95,7 +94,7 @@ final List<Chat> mockChats = [
   Chat(
     id: '2',
     name: 'Lizard the wizard',
-    avatar: '../assets/avatars/lizard.jpg',
+    avatar: 'assets/avatars/lizard.jpg',
     lastMessage: 'Looks great!',
     time: '4:23 PM',
     unreadCount: 1,
@@ -111,7 +110,7 @@ final List<Chat> mockChats = [
   Chat(
     id: '3',
     name: 'Firu',
-    avatar: '../assets/avatars/firu.jpg',
+    avatar: 'assets/avatars/firu.jpg',
     lastMessage: 'Lunch on Monday?',
     time: '4:12 PM',
     unreadCount: 0,
@@ -127,7 +126,7 @@ final List<Chat> mockChats = [
   Chat(
     id: '4',
     name: 'Big Yahu',
-    avatar: '../assets/avatars/bigyahu.jpg',
+    avatar: 'assets/avatars/bigyahu.jpg',
     lastMessage: 'You sent a photo.',
     time: '3:58 PM',
     unreadCount: 0,
@@ -145,7 +144,7 @@ final List<Chat> mockChats = [
   Chat(
     id: '5',
     name: 'Eziro',
-    avatar: '../assets/avatars/eziro.jpg',
+    avatar: 'assets/avatars/eziro.jpg',
     lastMessage: 'Eziro sent a photo.',
     time: '3:31 PM',
     unreadCount: 0,
@@ -156,14 +155,13 @@ final List<Chat> mockChats = [
         time: '3:31 PM',
         isSentByMe: false,
         type: MessageType.image,
-        imageUrl: 'https://example.com/eziro-photo.jpg',
       ),
     ],
   ),
   Chat(
     id: '6',
     name: 'Sciurus',
-    avatar: '../assets/avatars/sciurus.jpg',
+    avatar: 'assets/avatars/sciurus.jpg',
     lastMessage: 'Acorn mission complete.',
     time: '3:30 PM',
     unreadCount: 0,
@@ -182,42 +180,42 @@ final List<Contact> mockContacts = [
   Contact(
     id: '1',
     name: 'PopDog',
-    avatar: '../assets/avatars/popdog.jpg',
+    avatar: 'assets/avatars/popdog.jpg',
     phoneNumber: '+52 55 1000 0001',
     isOnline: true,
   ),
   Contact(
     id: '2',
     name: 'Lizard the wizard',
-    avatar: '../assets/avatars/lizard.jpg',
+    avatar: 'assets/avatars/lizard.jpg',
     phoneNumber: '+52 55 1000 0002',
     isOnline: true,
   ),
   Contact(
     id: '3',
     name: 'Firu',
-    avatar: '../assets/avatars/firu.jpg',
+    avatar: 'assets/avatars/firu.jpg',
     phoneNumber: '+52 55 1000 0003',
     isOnline: false,
   ),
   Contact(
     id: '4',
     name: 'Big Yahu',
-    avatar: '../assets/avatars/bigyahu.jpg',
+    avatar: 'assets/avatars/bigyahu.jpg',
     phoneNumber: '+52 55 1000 0004',
     isOnline: false,
   ),
   Contact(
     id: '5',
     name: 'Eziro',
-    avatar: '../assets/avatars/eziro.jpg',
+    avatar: 'assets/avatars/eziro.jpg',
     phoneNumber: '+52 55 1000 0005',
     isOnline: false,
   ),
   Contact(
     id: '6',
     name: 'Sciurus',
-    avatar: '../assets/avatars/sciurus.jpg',
+    avatar: 'assets/avatars/sciurus.jpg',
     phoneNumber: '+52 55 1000 0006',
     isOnline: true,
   ),
