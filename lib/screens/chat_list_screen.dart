@@ -5,7 +5,6 @@ import 'chat_screen.dart';
 import 'contacts_screen.dart';
 import '../widgets/user_avatar.dart';
 
-
 class ChatListScreen extends StatefulWidget {
   const ChatListScreen({super.key});
 
@@ -16,11 +15,6 @@ class ChatListScreen extends StatefulWidget {
 class _ChatListScreenState extends State<ChatListScreen> {
   int _selectedIndex = 0;
 
-  static const Color backgroundColor = AppTheme.backgroundPrimary;
-  static const Color cardColor = AppTheme.surfaceColor;
-  static const Color accentColor = AppTheme.accentColor;
-  static const Color textSecondary = AppTheme.textSecondary;
-
   final List<Widget> _screens = [
     const ChatsTab(),
     const ContactsScreen(),
@@ -30,12 +24,12 @@ class _ChatListScreenState extends State<ChatListScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: backgroundColor,
+      backgroundColor: AppTheme.backgroundPrimary,
       body: _screens[_selectedIndex],
       bottomNavigationBar: BottomNavigationBar(
-        backgroundColor: cardColor,
-        selectedItemColor: accentColor,
-        unselectedItemColor: textSecondary,
+        backgroundColor: AppTheme.surfaceColor,
+        selectedItemColor: AppTheme.accentColor,
+        unselectedItemColor: AppTheme.textSecondary,
         currentIndex: _selectedIndex,
         onTap: (index) {
           setState(() {
@@ -67,28 +61,21 @@ class _ChatListScreenState extends State<ChatListScreen> {
 class ChatsTab extends StatelessWidget {
   const ChatsTab({super.key});
 
-  static const Color backgroundColor = Color(0xFF0F1E25);
-  static const Color cardColor = Color(0xFF162B33);
-  static const Color inputColor = Color(0xFF1F3A44);
-  static const Color accentColor = Color(0xFF2AABEE);
-  static const Color textPrimary = Colors.white;
-  static const Color textSecondary = Color(0xFF9DB2BD);
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: backgroundColor,
+      backgroundColor: AppTheme.backgroundPrimary,
       appBar: AppBar(
-        backgroundColor: cardColor,
-        iconTheme: const IconThemeData(color: textPrimary),
+        backgroundColor: AppTheme.backgroundSecondary,
+        iconTheme: const IconThemeData(color: AppTheme.textPrimary),
         title: const Text(
           'Chats',
-          style: TextStyle(color: textPrimary),
+          style: TextStyle(color: AppTheme.textPrimary),
         ),
         actions: const [
-          Icon(Icons.search, color: textPrimary),
+          Icon(Icons.search, color: AppTheme.textPrimary),
           SizedBox(width: 12),
-          Icon(Icons.more_vert, color: textPrimary),
+          Icon(Icons.more_vert, color: AppTheme.textPrimary),
           SizedBox(width: 12),
         ],
       ),
@@ -98,15 +85,15 @@ class ChatsTab extends StatelessWidget {
             padding: const EdgeInsets.all(16.0),
             child: Container(
               decoration: BoxDecoration(
-                color: inputColor,
+                color: AppTheme.surfaceColor,
                 borderRadius: BorderRadius.circular(30),
               ),
               child: const TextField(
-                style: TextStyle(color: textPrimary),
+                style: TextStyle(color: AppTheme.textPrimary),
                 decoration: InputDecoration(
                   hintText: 'Search',
-                  hintStyle: TextStyle(color: textSecondary),
-                  prefixIcon: Icon(Icons.search, color: textSecondary),
+                  hintStyle: TextStyle(color: AppTheme.textSecondary),
+                  prefixIcon: Icon(Icons.search, color: AppTheme.textSecondary),
                   border: InputBorder.none,
                   contentPadding: EdgeInsets.symmetric(vertical: 12),
                 ),
@@ -137,10 +124,10 @@ class ChatsTab extends StatelessWidget {
                             width: 14,
                             height: 14,
                             decoration: BoxDecoration(
-                              color: accentColor,
+                              color: AppTheme.accentColor,
                               shape: BoxShape.circle,
                               border: Border.all(
-                                color: backgroundColor,
+                                color: AppTheme.backgroundPrimary,
                                 width: 2,
                               ),
                             ),
@@ -151,7 +138,7 @@ class ChatsTab extends StatelessWidget {
                   title: Text(
                     chat.name,
                     style: const TextStyle(
-                      color: textPrimary,
+                      color: AppTheme.textPrimary,
                       fontWeight: FontWeight.bold,
                       fontSize: 16,
                     ),
@@ -159,7 +146,7 @@ class ChatsTab extends StatelessWidget {
                   subtitle: Text(
                     chat.lastMessage,
                     style: const TextStyle(
-                      color: textSecondary,
+                      color: AppTheme.textSecondary,
                       fontSize: 14,
                     ),
                     maxLines: 1,
@@ -172,7 +159,7 @@ class ChatsTab extends StatelessWidget {
                       Text(
                         chat.time,
                         style: const TextStyle(
-                          color: textSecondary,
+                          color: AppTheme.textSecondary,
                           fontSize: 12,
                         ),
                       ),
@@ -181,13 +168,13 @@ class ChatsTab extends StatelessWidget {
                         Container(
                           padding: const EdgeInsets.all(6),
                           decoration: const BoxDecoration(
-                            color: accentColor,
+                            color: AppTheme.accentColor,
                             shape: BoxShape.circle,
                           ),
                           child: Text(
                             chat.unreadCount.toString(),
                             style: const TextStyle(
-                              color: Colors.white,
+                              color: AppTheme.textPrimary,
                               fontSize: 10,
                               fontWeight: FontWeight.bold,
                             ),
@@ -209,10 +196,10 @@ class ChatsTab extends StatelessWidget {
           ),
         ],
       ),
-      floatingActionButton: const FloatingActionButton(
-        backgroundColor: accentColor,
-        onPressed: null,
-        child: Icon(Icons.edit, color: Colors.white),
+      floatingActionButton: FloatingActionButton(
+        backgroundColor: AppTheme.accentColor,
+        onPressed: () {},
+        child: const Icon(Icons.edit, color: AppTheme.textPrimary),
       ),
     );
   }
@@ -221,39 +208,26 @@ class ChatsTab extends StatelessWidget {
 class SettingsTab extends StatelessWidget {
   const SettingsTab({super.key});
 
-  static const Color backgroundColor = Color(0xFF0F1E25);
-  static const Color cardColor = Color(0xFF162B33);
-  static const Color accentColor = Color(0xFF2AABEE);
-  static const Color textPrimary = Colors.white;
-  static const Color textSecondary = Color(0xFF9DB2BD);
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: backgroundColor,
+      backgroundColor: AppTheme.backgroundPrimary,
       appBar: AppBar(
-        backgroundColor: cardColor,
+        backgroundColor: AppTheme.backgroundSecondary,
         title: const Text(
           'Settings',
-          style: TextStyle(color: textPrimary),
+          style: TextStyle(color: AppTheme.textPrimary),
         ),
-        iconTheme: const IconThemeData(color: textPrimary),
+        iconTheme: const IconThemeData(color: AppTheme.textPrimary),
       ),
       body: ListView(
         children: [
           const SizedBox(height: 16),
           const Center(
-            child: CircleAvatar(
-              radius: 50,
-              backgroundColor: accentColor,
-              child: Text(
-                'JD',
-                style: TextStyle(
-                  fontSize: 32,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
-                ),
-              ),
+            child: UserAvatar(
+              avatarPath: 'assets/user/pfp.jpg',
+              name: 'John Doe',
+              radius: 40,
             ),
           ),
           const SizedBox(height: 8),
@@ -261,7 +235,7 @@ class SettingsTab extends StatelessWidget {
             child: Text(
               'John Doe',
               style: TextStyle(
-                color: textPrimary,
+                color: AppTheme.textPrimary,
                 fontSize: 24,
                 fontWeight: FontWeight.bold,
               ),
@@ -271,7 +245,7 @@ class SettingsTab extends StatelessWidget {
           const Center(
             child: Text(
               '+1 234-567-8900',
-              style: TextStyle(color: textSecondary),
+              style: TextStyle(color: AppTheme.textSecondary),
             ),
           ),
           const SizedBox(height: 32),
@@ -288,13 +262,12 @@ class SettingsTab extends StatelessWidget {
 
   Widget _buildSettingItem(IconData icon, String title) {
     return ListTile(
-      leading: const Icon(Icons.circle, color: Colors.transparent),
+      leading: Icon(icon, color: AppTheme.textSecondary),
       title: Text(
         title,
-        style: const TextStyle(color: textPrimary),
+        style: const TextStyle(color: AppTheme.textPrimary),
       ),
-      trailing: const Icon(Icons.chevron_right, color: textSecondary),
-      iconColor: textSecondary,
+      trailing: const Icon(Icons.chevron_right, color: AppTheme.textSecondary),
       onTap: () {},
     );
   }

@@ -1,3 +1,4 @@
+import 'package:silex/theme/app_theme.dart';
 import 'package:flutter/material.dart';
 import '../widgets/user_avatar.dart';
 import '../models/mock_data.dart';
@@ -6,11 +7,11 @@ import 'add_contact_screen.dart';
 class ContactsScreen extends StatelessWidget {
   const ContactsScreen({super.key});
 
-  static const Color backgroundColor = Color(0xFF0F1E25);
-  static const Color secondaryBackground = Color(0xFF162B33);
-  static const Color accentColor = Color(0xFF2AABEE);
-  static const Color textPrimary = Colors.white;
-  static const Color textSecondary = Color(0xFF9DB2BD);
+  static const Color backgroundColor = AppTheme.backgroundPrimary;
+  static const Color secondaryBackground = AppTheme.backgroundSecondary;
+  static const Color accentColor = AppTheme.accentColor;
+  static const Color textPrimary = AppTheme.textPrimary;
+  static const Color textSecondary = AppTheme.textSecondary;
 
   @override
   Widget build(BuildContext context) {

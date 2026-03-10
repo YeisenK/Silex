@@ -9,6 +9,7 @@ class AppTheme {
   static const Color errorColor          = Color(0xFFF15E6C);
   static const Color textPrimary         = Color(0xFFFFFFFF);
   static const Color textSecondary       = Color(0xFF9DB2BD);
+  static const Color inputColor          = Color(0xFF1F3A44);
 
   static ThemeData get darkTheme {
     return ThemeData.dark().copyWith(
@@ -22,6 +23,7 @@ class AppTheme {
         onPrimary: textPrimary,
         onSurface: textPrimary,
       ),
+
 
       appBarTheme: const AppBarTheme(
         backgroundColor: backgroundSecondary,
