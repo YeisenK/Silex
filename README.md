@@ -140,16 +140,6 @@ flutter run
 
 ---
 
-## Development Roadmap
-
-| Phase | Description | Timeline |
-|---|---|---|
-| Phase 1 | Inception & Design — Architecture, data model, mockups | Week 1 |
-| Phase 2 | Core Development — Screens, navigation, mock data, components | Weeks 2–3 |
-| Phase 3 | Multimedia & Polish — Previews, animations, Android testing | Weeks 3–5 |
-| Phase 4 | Documentation & Delivery — Build, docs, demo video | Week 6 |
-
----
 
 ## Security Principles
 
