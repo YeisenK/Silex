@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:silex/theme/app_theme.dart';
 import '../models/mock_data.dart';
 import '../widgets/chat_bubble.dart';
+import '../widgets/user_avatar.dart';
 
 class ChatScreen extends StatefulWidget {
   final Chat chat;
@@ -15,12 +17,12 @@ class _ChatScreenState extends State<ChatScreen> {
   final TextEditingController _messageController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
 
-  static const Color backgroundColor = Color(0xFF0F1E25);
-  static const Color secondaryBackground = Color(0xFF162B33);
+  static const Color backgroundColor = AppTheme.backgroundPrimary;
+  static const Color secondaryBackground = AppTheme.backgroundSecondary;
   static const Color inputColor = Color(0xFF1F3A44);
-  static const Color accentColor = Color.fromARGB(255, 223, 19, 19);
-  static const Color textPrimary = Colors.white;
-  static const Color textSecondary = Color(0xFF9DB2BD);
+  static const Color accentColor = AppTheme.accentColor;
+  static const Color textPrimary = AppTheme.textPrimary;
+  static const Color textSecondary = AppTheme.textSecondary;
 
   @override
   Widget build(BuildContext context) {
@@ -37,17 +39,9 @@ class _ChatScreenState extends State<ChatScreen> {
           children: [
             Stack(
               children: [
-                CircleAvatar(
-                  radius: 20,
-                  backgroundColor: accentColor.withOpacity(0.15),
-                  child: Text(
-                    widget.chat.avatar,
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      color: accentColor,
-                    ),
-                  ),
+                UserAvatar(
+                  avatarPath: widget.chat.avatar,
+                  name: widget.chat.name,
                 ),
                 if (widget.chat.isOnline)
                   Positioned(

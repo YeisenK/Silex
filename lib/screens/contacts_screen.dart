@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../widgets/user_avatar.dart';
 import '../models/mock_data.dart';
 import 'add_contact_screen.dart';
 
@@ -40,17 +41,9 @@ class ContactsScreen extends StatelessWidget {
             ),
             leading: Stack(
               children: [
-                CircleAvatar(
-                  radius: 24,
-                  backgroundColor: accentColor.withOpacity(0.15),
-                  child: Text(
-                    contact.avatar,
-                    style: const TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: accentColor,
-                    ),
-                  ),
+                UserAvatar(
+                  avatarPath: contact.avatar,
+                  name: contact.name,
                 ),
                 if (contact.isOnline)
                   Positioned(

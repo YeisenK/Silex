@@ -3,6 +3,8 @@ import '../models/mock_data.dart';
 import '../theme/app_theme.dart';
 import 'chat_screen.dart';
 import 'contacts_screen.dart';
+import '../widgets/user_avatar.dart';
+
 
 class ChatListScreen extends StatefulWidget {
   const ChatListScreen({super.key});
@@ -123,26 +125,9 @@ class ChatsTab extends StatelessWidget {
                   ),
                   leading: Stack(
                     children: [
-                      CircleAvatar(
-                        radius: 20,
-                        backgroundColor: AppTheme.surfaceColor,
-                        child: ClipOval(
-                          child: Image.asset(
-                            chat.avatar,
-                            width: 40,
-                            height: 40,
-                            fit: BoxFit.cover,
-                            errorBuilder: (context, error, stackTrace) {
-                              return Text(
-                                chat.name[0].toUpperCase(),
-                                style: const TextStyle(
-                                  color: AppTheme.accentColor,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              );
-                            },
-                          ),
-                        ),
+                      UserAvatar(
+                        avatarPath: chat.avatar,
+                        name: chat.name,
                       ),
                       if (chat.isOnline)
                         Positioned(
