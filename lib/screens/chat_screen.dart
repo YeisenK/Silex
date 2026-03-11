@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:silex/theme/app_theme.dart';
-import '../models/mock_data.dart';
 import '../widgets/chat_bubble.dart';
 import '../widgets/user_avatar.dart';
+import '../models/chat.dart';
 
 class ChatScreen extends StatefulWidget {
   final Chat chat;

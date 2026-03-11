@@ -1,7 +1,7 @@
 import 'package:silex/theme/app_theme.dart';
 import 'package:flutter/material.dart';
 import '../widgets/user_avatar.dart';
-import '../models/mock_data.dart';
+import '../data/mock_data.dart';
 import 'add_contact_screen.dart';
 
 class ContactsScreen extends StatelessWidget {
