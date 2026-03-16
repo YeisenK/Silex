@@ -6,11 +6,34 @@ import '../core/constants.dart';
 import '../core/storage_service.dart';
 import '../firebase_options.dart';
 
-// top-level handler for background messages
 @pragma('vm:entry-point')
 Future<void> _firebaseBackgroundHandler(RemoteMessage message) async {
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
-  await NotificationService._showLocalNotification(message);
+
+  final notification = message.notification;
+  if (notification == null) return;
+
+  final plugin = FlutterLocalNotificationsPlugin();
+  await plugin.initialize(
+    const InitializationSettings(
+      android: AndroidInitializationSettings('@mipmap/ic_launcher'),
+    ),
+  );
+
+  const androidDetails = AndroidNotificationDetails(
+    'silex_messages',
+    'Messages',
+    channelDescription: 'Silex encrypted message notifications',
+    importance: Importance.high,
+    priority: Priority.high,
+  );
+
+  await plugin.show(
+    DateTime.now().millisecondsSinceEpoch ~/ 1000,
+    notification.title ?? 'Silex',
+    notification.body ?? 'New encrypted message',
+    const NotificationDetails(android: androidDetails),
+  );
 }
 
 class NotificationService {
@@ -18,51 +41,67 @@ class NotificationService {
   static final _localNotifications = FlutterLocalNotificationsPlugin();
   static final _dio = Dio(BaseOptions(baseUrl: AppConstants.baseUrl));
 
-  static const _channelId = 'silex_messages';
-  static const _channelName = 'Messages';
-  static const _channelDesc = 'Silex encrypted message notifications';
-
   static Future<void> initialize() async {
-    // request permission
     await _messaging.requestPermission(
       alert: true,
       badge: true,
       sound: true,
     );
 
-    // setup local notifications (Android)
-    const androidSettings =
-        AndroidInitializationSettings('@mipmap/ic_launcher');
-    const initSettings = InitializationSettings(android: androidSettings);
-    await _localNotifications.initialize(initSettings);
-
-    // create notification channel
-    const channel = AndroidNotificationChannel(
-      _channelId,
-      _channelName,
-      description: _channelDesc,
-      importance: Importance.high,
+    await _localNotifications.initialize(
+      const InitializationSettings(
+        android: AndroidInitializationSettings('@mipmap/ic_launcher'),
+      ),
     );
-    await _localNotifications
-        .resolvePlatformSpecificImplementation<
-            AndroidFlutterLocalNotificationsPlugin>()
-        ?.createNotificationChannel(channel);
 
-    // background handler
+    _localNotifications
+        .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
+        ?.createNotificationChannel(
+          const AndroidNotificationChannel(
+            'silex_messages',
+            'Messages',
+            description: 'Silex encrypted message notifications',
+            importance: Importance.high,
+          ),
+        );
+
     FirebaseMessaging.onBackgroundMessage(_firebaseBackgroundHandler);
 
-    // foreground handler
     FirebaseMessaging.onMessage.listen((message) async {
-      // check notification preferences
       final enabled = await StorageService.getKey('pref_notif_messages');
       if (enabled == 'false') return;
-      await _showLocalNotification(message);
+
+      final notification = message.notification;
+      if (notification == null) return;
+
+      final showPreviews =
+          await StorageService.getKey('pref_notif_previews');
+      final vibrate = await StorageService.getKey('pref_notif_vibrate');
+      final sound = await StorageService.getKey('pref_notif_sound');
+
+      final body = showPreviews == 'false'
+          ? 'New encrypted message'
+          : notification.body ?? 'New encrypted message';
+
+      final androidDetails = AndroidNotificationDetails(
+        'silex_messages',
+        'Messages',
+        channelDescription: 'Silex encrypted message notifications',
+        importance: Importance.high,
+        priority: Priority.high,
+        enableVibration: vibrate != 'false',
+        playSound: sound != 'false',
+      );
+
+      await _localNotifications.show(
+        DateTime.now().millisecondsSinceEpoch ~/ 1000,
+        notification.title ?? 'Silex',
+        body,
+        NotificationDetails(android: androidDetails),
+      );
     });
 
-    // register FCM token with backend
     await _registerToken();
-
-    // listen for token refresh
     _messaging.onTokenRefresh.listen((_) => _registerToken());
   }
 
@@ -83,36 +122,5 @@ class NotificationService {
         options: Options(headers: {'Authorization': 'Bearer $jwt'}),
       );
     } catch (_) {}
-  }
-
-  static Future<void> _showLocalNotification(RemoteMessage message) async {
-    final notification = message.notification;
-    if (notification == null) return;
-
-    // check preferences
-    final showPreviews = await StorageService.getKey('pref_notif_previews');
-    final vibrate = await StorageService.getKey('pref_notif_vibrate');
-    final sound = await StorageService.getKey('pref_notif_sound');
-
-    final body = showPreviews == 'false'
-        ? 'New encrypted message'
-        : notification.body ?? 'New encrypted message';
-
-    final androidDetails = AndroidNotificationDetails(
-      _channelId,
-      _channelName,
-      channelDescription: _channelDesc,
-      importance: Importance.high,
-      priority: Priority.high,
-      enableVibration: vibrate != 'false',
-      playSound: sound != 'false',
-    );
-
-    await _localNotifications.show(
-      DateTime.now().millisecondsSinceEpoch ~/ 1000,
-      notification.title ?? 'Silex',
-      body,
-      NotificationDetails(android: androidDetails),
-    );
   }
 }
