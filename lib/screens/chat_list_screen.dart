@@ -1,13 +1,17 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../core/local_db.dart';
 import '../theme/app_theme.dart';
 import '../models/chat.dart';
 import '../models/contact.dart';
 import '../services/contacts_service.dart';
+import '../services/profile_service.dart';
 import '../providers/message_provider.dart';
 import '../widgets/user_avatar.dart';
 import 'chat_screen.dart';
 import 'contacts_screen.dart';
+import 'edit_profile_screen.dart';
 
 class ChatListScreen extends StatefulWidget {
   const ChatListScreen({super.key});
@@ -62,6 +66,8 @@ class _ChatListScreenState extends State<ChatListScreen> {
   }
 }
 
+// ── Chats Tab ──
+
 class ChatsTab extends ConsumerStatefulWidget {
   const ChatsTab({super.key});
 
@@ -71,16 +77,34 @@ class ChatsTab extends ConsumerStatefulWidget {
 
 class _ChatsTabState extends ConsumerState<ChatsTab> {
   List<Contact> _contacts = [];
+  List<_ChatPreview> _dbPreviews = [];
+  final Map<String, _SenderProfile> _unknownProfiles = {};
 
   @override
   void initState() {
     super.initState();
     _loadContacts();
+    _loadDbPreviews();
   }
 
   Future<void> _loadContacts() async {
     final contacts = await ContactsService.loadContacts();
     if (mounted) setState(() => _contacts = contacts);
+  }
+
+  Future<void> _loadDbPreviews() async {
+    final rows = await LocalDb.getChatPreviews();
+    final previews = rows.map((row) {
+      return _ChatPreview(
+        userId: row['chat_id'] as String,
+        lastMessage: row['last_message'] as String,
+        timestamp:
+            DateTime.fromMillisecondsSinceEpoch(row['last_timestamp'] as int),
+        unread: 0,
+      );
+    }).toList();
+
+    if (mounted) setState(() => _dbPreviews = previews);
   }
 
   Contact? _findContact(String userId) {
@@ -91,14 +115,92 @@ class _ChatsTabState extends ConsumerState<ChatsTab> {
     }
   }
 
+  Future<_SenderProfile> _fetchUnknownProfile(String userId) async {
+    if (_unknownProfiles.containsKey(userId)) {
+      return _unknownProfiles[userId]!;
+    }
+    try {
+      final profile = await ProfileService.getProfile(userId);
+      final result = _SenderProfile(
+        displayName: profile['displayName'] as String?,
+        avatarBase64: profile['avatarBase64'] as String?,
+      );
+      _unknownProfiles[userId] = result;
+      return result;
+    } catch (_) {
+      final fallback = _SenderProfile();
+      _unknownProfiles[userId] = fallback;
+      return fallback;
+    }
+  }
+
+  void _promptAddContact(BuildContext context, String userId, String name) {
+    showDialog(
+      context: context,
+      builder: (ctx) {
+        final nameController = TextEditingController(text: name);
+        return AlertDialog(
+          backgroundColor: AppTheme.backgroundSecondary,
+          title: const Text(
+            'Add to contacts?',
+            style: TextStyle(color: AppTheme.textPrimary),
+          ),
+          content: TextField(
+            controller: nameController,
+            style: const TextStyle(color: AppTheme.textPrimary),
+            decoration: InputDecoration(
+              labelText: 'Name',
+              labelStyle: const TextStyle(color: AppTheme.textSecondary),
+              filled: true,
+              fillColor: AppTheme.backgroundPrimary,
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+                borderSide: BorderSide.none,
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Cancel',
+                  style: TextStyle(color: AppTheme.textSecondary)),
+            ),
+            TextButton(
+              onPressed: () async {
+                final contactName = nameController.text.trim();
+                if (contactName.isEmpty) return;
+                await ContactsService.addContact(Contact(
+                  id: userId,
+                  name: contactName,
+                  avatar: '',
+                  phoneNumber: '',
+                ));
+                await _loadContacts();
+                if (ctx.mounted) Navigator.pop(ctx);
+              },
+              child: const Text('Save',
+                  style: TextStyle(color: AppTheme.accentColor)),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final incoming = ref.watch(messagesProvider);
     final sent = ref.watch(sentMessagesProvider);
 
-    // collect all user IDs that have messages
+    // merge DB previews with in-memory messages
     final Map<String, _ChatPreview> chatPreviews = {};
 
+    // start with DB previews
+    for (final p in _dbPreviews) {
+      chatPreviews[p.userId] = p;
+    }
+
+    // overlay with in-memory incoming
     for (final m in incoming) {
       final isRead = ref.read(messagesProvider.notifier).isRead(m.messageId);
       final existing = chatPreviews[m.senderId];
@@ -119,6 +221,7 @@ class _ChatsTabState extends ConsumerState<ChatsTab> {
       }
     }
 
+    // overlay with in-memory sent
     for (final m in sent) {
       final existing = chatPreviews[m.recipientId];
       if (existing == null || m.sentAt.isAfter(existing.timestamp)) {
@@ -163,81 +266,45 @@ class _ChatsTabState extends ConsumerState<ChatsTab> {
               itemBuilder: (context, index) {
                 final preview = sortedChats[index];
                 final contact = _findContact(preview.userId);
-                final name = contact?.name ?? preview.userId.substring(0, 8);
-                final avatar = contact?.avatar ?? '';
+                final isUnknown = contact == null;
                 final timeStr =
                     '${preview.timestamp.hour}:${preview.timestamp.minute.toString().padLeft(2, '0')}';
 
-                return ListTile(
-                  contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 8,
-                  ),
-                  leading: UserAvatar(avatarPath: avatar, name: name),
-                  title: Text(
-                    name,
-                    style: const TextStyle(
-                      color: AppTheme.textPrimary,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 16,
-                    ),
-                  ),
-                  subtitle: Text(
-                    preview.lastMessage,
-                    style: const TextStyle(
-                      color: AppTheme.textSecondary,
-                      fontSize: 14,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  trailing: Column(
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text(
-                        timeStr,
-                        style: const TextStyle(
-                          color: AppTheme.textSecondary,
-                          fontSize: 12,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      if (preview.unread > 0)
-                        Container(
-                          padding: const EdgeInsets.all(6),
-                          decoration: const BoxDecoration(
-                            color: AppTheme.accentColor,
-                            shape: BoxShape.circle,
-                          ),
-                          child: Text(
-                            preview.unread.toString(),
-                            style: const TextStyle(
-                              color: AppTheme.textPrimary,
-                              fontSize: 10,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
-                    ],
-                  ),
-                  onTap: () {
-                    final chat = Chat(
-                      id: preview.userId,
-                      name: name,
-                      avatar: avatar,
-                      lastMessage: preview.lastMessage,
-                      time: timeStr,
-                      unreadCount: 0,
-                      messages: [],
-                    );
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => ChatScreen(chat: chat),
-                      ),
-                    );
-                  },
+                if (isUnknown) {
+                  return FutureBuilder<_SenderProfile>(
+                    future: _fetchUnknownProfile(preview.userId),
+                    builder: (context, snapshot) {
+                      final profile = snapshot.data;
+                      final name = profile?.displayName ??
+                          preview.userId.substring(0, 8);
+                      final avatarB64 = profile?.avatarBase64;
+
+                      return _buildChatTile(
+                        context: context,
+                        preview: preview,
+                        name: name,
+                        avatarWidget: avatarB64 != null
+                            ? CircleAvatar(
+                                radius: 24,
+                                backgroundImage:
+                                    MemoryImage(base64Decode(avatarB64)),
+                              )
+                            : null,
+                        timeStr: timeStr,
+                        isUnknown: true,
+                      );
+                    },
+                  );
+                }
+
+                return _buildChatTile(
+                  context: context,
+                  preview: preview,
+                  name: contact.name,
+                  avatarWidget: null,
+                  avatarPath: contact.avatar,
+                  timeStr: timeStr,
+                  isUnknown: false,
                 );
               },
             ),
@@ -246,6 +313,86 @@ class _ChatsTabState extends ConsumerState<ChatsTab> {
         onPressed: () {},
         child: const Icon(Icons.edit, color: AppTheme.textPrimary),
       ),
+    );
+  }
+
+  Widget _buildChatTile({
+    required BuildContext context,
+    required _ChatPreview preview,
+    required String name,
+    Widget? avatarWidget,
+    String? avatarPath,
+    required String timeStr,
+    required bool isUnknown,
+  }) {
+    return ListTile(
+      contentPadding:
+          const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      leading: avatarWidget ??
+          UserAvatar(avatarPath: avatarPath ?? '', name: name),
+      title: Text(
+        name,
+        style: TextStyle(
+          color: AppTheme.textPrimary,
+          fontWeight: FontWeight.bold,
+          fontSize: 16,
+          fontStyle: isUnknown ? FontStyle.italic : FontStyle.normal,
+        ),
+      ),
+      subtitle: Text(
+        preview.lastMessage,
+        style: const TextStyle(color: AppTheme.textSecondary, fontSize: 14),
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+      ),
+      trailing: Column(
+        crossAxisAlignment: CrossAxisAlignment.end,
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Text(
+            timeStr,
+            style: const TextStyle(
+                color: AppTheme.textSecondary, fontSize: 12),
+          ),
+          const SizedBox(height: 4),
+          if (preview.unread > 0)
+            Container(
+              padding: const EdgeInsets.all(6),
+              decoration: const BoxDecoration(
+                color: AppTheme.accentColor,
+                shape: BoxShape.circle,
+              ),
+              child: Text(
+                preview.unread.toString(),
+                style: const TextStyle(
+                  color: AppTheme.textPrimary,
+                  fontSize: 10,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+        ],
+      ),
+      onTap: () {
+        final chat = Chat(
+          id: preview.userId,
+          name: name,
+          avatar: avatarPath ?? '',
+          lastMessage: preview.lastMessage,
+          time: timeStr,
+          unreadCount: 0,
+          messages: [],
+        );
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => ChatScreen(chat: chat),
+          ),
+        );
+      },
+      onLongPress: isUnknown
+          ? () => _promptAddContact(context, preview.userId, name)
+          : null,
     );
   }
 }
@@ -264,8 +411,59 @@ class _ChatPreview {
   });
 }
 
-class SettingsTab extends StatelessWidget {
+class _SenderProfile {
+  final String? displayName;
+  final String? avatarBase64;
+  _SenderProfile({this.displayName, this.avatarBase64});
+}
+
+// ── Settings Tab ──
+
+class SettingsTab extends StatefulWidget {
   const SettingsTab({super.key});
+
+  @override
+  State<SettingsTab> createState() => _SettingsTabState();
+}
+
+class _SettingsTabState extends State<SettingsTab> {
+  String? _displayName;
+  String? _avatarBase64;
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadProfile();
+  }
+
+  Future<void> _loadProfile() async {
+    try {
+      final profile = await ProfileService.getMyProfile();
+      if (mounted) {
+        setState(() {
+          _displayName = profile['displayName'] as String?;
+          _avatarBase64 = profile['avatarBase64'] as String?;
+          _isLoading = false;
+        });
+      }
+    } catch (_) {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  void _openEditProfile() async {
+    final result = await Navigator.push<bool>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => EditProfileScreen(
+          currentName: _displayName,
+          currentAvatarBase64: _avatarBase64,
+        ),
+      ),
+    );
+    if (result == true) _loadProfile();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -279,43 +477,73 @@ class SettingsTab extends StatelessWidget {
         ),
         iconTheme: const IconThemeData(color: AppTheme.textPrimary),
       ),
-      body: ListView(
-        children: [
-          const SizedBox(height: 16),
-          const Center(
-            child: UserAvatar(
-              avatarPath: 'assets/user/pfp.jpg',
-              name: 'John Doe',
-              radius: 40,
+      body: _isLoading
+          ? const Center(
+              child:
+                  CircularProgressIndicator(color: AppTheme.accentColor))
+          : ListView(
+              children: [
+                const SizedBox(height: 16),
+                GestureDetector(
+                  onTap: _openEditProfile,
+                  child: Column(
+                    children: [
+                      CircleAvatar(
+                        radius: 40,
+                        backgroundColor: AppTheme.backgroundSecondary,
+                        backgroundImage: _avatarBase64 != null
+                            ? MemoryImage(base64Decode(_avatarBase64!))
+                            : null,
+                        child: _avatarBase64 == null
+                            ? Text(
+                                (_displayName ?? '?')[0].toUpperCase(),
+                                style: const TextStyle(
+                                  fontSize: 32,
+                                  color: AppTheme.textSecondary,
+                                  fontFamily: 'BarlowCondensed',
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              )
+                            : null,
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        _displayName ?? 'Set your name',
+                        style: TextStyle(
+                          color: _displayName != null
+                              ? AppTheme.textPrimary
+                              : AppTheme.textSecondary,
+                          fontSize: 24,
+                          fontWeight: FontWeight.bold,
+                          fontStyle: _displayName != null
+                              ? FontStyle.normal
+                              : FontStyle.italic,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Tap to edit profile',
+                        style: TextStyle(
+                          color:
+                              AppTheme.textSecondary.withValues(alpha: 0.6),
+                          fontSize: 12,
+                          fontFamily: 'ShareTechMono',
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 32),
+                _buildSettingItem(
+                    Icons.notifications_outlined, 'Notifications'),
+                _buildSettingItem(Icons.lock_outline, 'Privacy'),
+                _buildSettingItem(
+                    Icons.storage_outlined, 'Storage and data'),
+                _buildSettingItem(Icons.apps_outlined, 'Apps'),
+                _buildSettingItem(Icons.help_outline, 'Help'),
+                _buildSettingItem(Icons.info_outline, 'About'),
+              ],
             ),
-          ),
-          const SizedBox(height: 8),
-          const Center(
-            child: Text(
-              'John Doe',
-              style: TextStyle(
-                color: AppTheme.textPrimary,
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ),
-          const SizedBox(height: 4),
-          const Center(
-            child: Text(
-              '+1 234-567-8900',
-              style: TextStyle(color: AppTheme.textSecondary),
-            ),
-          ),
-          const SizedBox(height: 32),
-          _buildSettingItem(Icons.notifications_outlined, 'Notifications'),
-          _buildSettingItem(Icons.lock_outline, 'Privacy'),
-          _buildSettingItem(Icons.storage_outlined, 'Storage and data'),
-          _buildSettingItem(Icons.apps_outlined, 'Apps'),
-          _buildSettingItem(Icons.help_outline, 'Help'),
-          _buildSettingItem(Icons.info_outline, 'About'),
-        ],
-      ),
     );
   }
 
@@ -326,7 +554,8 @@ class SettingsTab extends StatelessWidget {
         title,
         style: const TextStyle(color: AppTheme.textPrimary),
       ),
-      trailing: const Icon(Icons.chevron_right, color: AppTheme.textSecondary),
+      trailing:
+          const Icon(Icons.chevron_right, color: AppTheme.textSecondary),
       onTap: () {},
     );
   }

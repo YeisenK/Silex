@@ -19,13 +19,6 @@ class _CreatePinScreenState extends State<CreatePinScreen> {
   bool _isLoading = false;
   String? _error;
 
-  bool get _isValid {
-    if (!_isConfirmStep) {
-      return _pinController.text.length >= 4 && _pinController.text.length <= 6;
-    }
-    return _confirmController.text == _pinController.text;
-  }
-
   Future<void> _onNext() async {
     if (!_isConfirmStep) {
       if (_pinController.text.length < 4 || _pinController.text.length > 6) {
@@ -191,7 +184,7 @@ class _CreatePinScreenState extends State<CreatePinScreen> {
                       borderRadius: BorderRadius.circular(20),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withOpacity(0.25),
+                          color: Colors.black.withValues(alpha: 0.25),
                           blurRadius: 12,
                           offset: const Offset(0, 4),
                         ),

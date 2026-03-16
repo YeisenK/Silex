@@ -19,6 +19,7 @@ void main() async {
   // only auto-connect if logged in WITHOUT pin (pin unlock will connect later)
   if (isLoggedIn && !hasPinConfigured) {
     await SocketService.connect();
+    //await StorageService.clearSessionKeys();
     await CryptoService.ensureIdentityPublic();
   }
 

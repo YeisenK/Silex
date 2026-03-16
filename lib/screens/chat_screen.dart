@@ -1,7 +1,6 @@
-import 'dart:convert';
-
 import 'package:flutter/material.dart';
 import 'package:silex/core/crypto_service.dart';
+import 'package:silex/core/local_db.dart';
 import 'package:silex/models/message.dart';
 import 'package:silex/services/keys_service.dart';
 import 'package:silex/services/message_service.dart' hide SentMessage;
@@ -25,6 +24,8 @@ class ChatScreen extends ConsumerStatefulWidget {
 class _ChatScreenState extends ConsumerState<ChatScreen> {
   final TextEditingController _messageController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
+  List<_TimedMessage> _history = [];
+  bool _historyLoaded = false;
 
   static const Color backgroundColor = AppTheme.backgroundPrimary;
   static const Color secondaryBackground = AppTheme.backgroundSecondary;
@@ -32,6 +33,44 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   static const Color accentColor = AppTheme.accentColor;
   static const Color textPrimary = AppTheme.textPrimary;
   static const Color textSecondary = AppTheme.textSecondary;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadHistory();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.read(messagesProvider.notifier).markAsRead(widget.chat.id);
+    });
+  }
+
+  Future<void> _loadHistory() async {
+    final rows = await LocalDb.getMessages(widget.chat.id);
+    final messages = rows.map((row) {
+      return _TimedMessage(
+        Message(
+          id: row['id'] as String,
+          text: row['text'] as String,
+          time: row['time'] as String,
+          isSentByMe: (row['is_sent_by_me'] as int) == 1,
+        ),
+        DateTime.fromMillisecondsSinceEpoch(row['timestamp'] as int),
+      );
+    }).toList();
+
+    if (mounted) {
+      setState(() {
+        _history = messages;
+        _historyLoaded = true;
+      });
+
+      // scroll to bottom after history loads
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (_scrollController.hasClients) {
+          _scrollController.jumpTo(_scrollController.position.maxScrollExtent);
+        }
+      });
+    }
+  }
 
   Future<void> _sendMessage(String text) async {
     try {
@@ -69,20 +108,26 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       );
 
       ref.read(sentMessagesProvider.notifier).addMessage(
-        SentMessage(
-          messageId: DateTime.now().millisecondsSinceEpoch.toString(),
-          recipientId: widget.chat.id,
-          ciphertext: text,
-          time: '${DateTime.now().hour}:${DateTime.now().minute.toString().padLeft(2, '0')}',
-        ),
-      );
+            SentMessage(
+              messageId: DateTime.now().millisecondsSinceEpoch.toString(),
+              recipientId: widget.chat.id,
+              ciphertext: text,
+              time:
+                  '${DateTime.now().hour}:${DateTime.now().minute.toString().padLeft(2, '0')}',
+            ),
+          );
 
-      _scrollController.animateTo(
-        _scrollController.position.maxScrollExtent,
-        duration: const Duration(milliseconds: 300),
-        curve: Curves.easeOut,
-      );
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (_scrollController.hasClients) {
+          _scrollController.animateTo(
+            _scrollController.position.maxScrollExtent,
+            duration: const Duration(milliseconds: 300),
+            curve: Curves.easeOut,
+          );
+        }
+      });
     } catch (e) {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Error: $e')),
       );
@@ -204,6 +249,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
               ),
               child: Builder(
                 builder: (context) {
+                  // new messages from this session (not yet in history)
                   final incomingMessages = ref
                       .watch(messagesProvider)
                       .where((m) => m.senderId == widget.chat.id)
@@ -214,62 +260,67 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                       .where((m) => m.recipientId == widget.chat.id)
                       .toList();
 
+                  // IDs already in history to avoid duplicates
+                  final historyIds =
+                      _history.map((h) => h.message.id).toSet();
+
+                  final newIncoming = incomingMessages
+                      .where((m) => !historyIds.contains(m.messageId))
+                      .map((m) => _TimedMessage(
+                            Message(
+                              id: m.messageId,
+                              text: m.plaintext,
+                              time:
+                                  '${m.receivedAt.hour}:${m.receivedAt.minute.toString().padLeft(2, '0')}',
+                              isSentByMe: false,
+                            ),
+                            m.receivedAt,
+                          ));
+
+                  final newSent = sentMessages
+                      .where((m) => !historyIds.contains(m.messageId))
+                      .map((m) => _TimedMessage(
+                            Message(
+                              id: m.messageId,
+                              text: m.ciphertext,
+                              time: m.time,
+                              isSentByMe: true,
+                            ),
+                            m.sentAt,
+                          ));
+
                   final allMessages = [
-                    ...widget.chat.messages
-                        .map((m) => _TimedMessage(m, DateTime(2000))),
-                    ...incomingMessages.map((m) => _TimedMessage(
-                          Message(
-                            id: m.messageId,
-                            text: m.plaintext,
-                            time:
-                                '${m.receivedAt.hour}:${m.receivedAt.minute.toString().padLeft(2, '0')}',
-                            isSentByMe: false,
-                          ),
-                          m.receivedAt,
-                        )),
-                    ...sentMessages.map((m) => _TimedMessage(
-                          Message(
-                            id: m.messageId,
-                            text: m.ciphertext,
-                            time: m.time,
-                            isSentByMe: true,
-                          ),
-                          m.sentAt,
-                        )),
+                    ..._history,
+                    ...newIncoming,
+                    ...newSent,
                   ];
 
                   allMessages
                       .sort((a, b) => a.timestamp.compareTo(b.timestamp));
 
+                  if (!_historyLoaded) {
+                    return const Center(
+                      child: CircularProgressIndicator(
+                          color: AppTheme.accentColor),
+                    );
+                  }
+
+                  if (allMessages.isEmpty) {
+                    return const Center(
+                      child: Text(
+                        'No messages yet',
+                        style: TextStyle(
+                            color: AppTheme.textSecondary, fontSize: 14),
+                      ),
+                    );
+                  }
+
                   return ListView.builder(
                     controller: _scrollController,
                     padding: const EdgeInsets.all(16),
-                    itemCount: allMessages.length + 1,
+                    itemCount: allMessages.length,
                     itemBuilder: (context, index) {
-                      if (index == 0) {
-                        return Center(
-                          child: Container(
-                            margin: const EdgeInsets.symmetric(vertical: 16),
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 12,
-                              vertical: 6,
-                            ),
-                            decoration: BoxDecoration(
-                              color: inputColor,
-                              borderRadius: BorderRadius.circular(16),
-                            ),
-                            child: const Text(
-                              'Today',
-                              style: TextStyle(
-                                color: textSecondary,
-                                fontSize: 12,
-                              ),
-                            ),
-                          ),
-                        );
-                      }
-
-                      final item = allMessages[index - 1];
+                      final item = allMessages[index];
                       return ChatBubble(
                         message: item.message,
                         isSentByMe: item.message.isSentByMe,
@@ -345,14 +396,6 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     _messageController.dispose();
     _scrollController.dispose();
     super.dispose();
-  }
-
-  @override
-  void initState() {
-    super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      ref.read(messagesProvider.notifier).markAsRead(widget.chat.id);
-    });
   }
 }
 

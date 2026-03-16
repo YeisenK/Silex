@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+//import 'package:silex/core/storage_service.dart';
 import '../core/pin_service.dart';
 import '../services/socket_service.dart';
 import '../core/crypto_service.dart';
@@ -58,6 +59,7 @@ class _UnlockScreenState extends State<UnlockScreen>
 
     try {
       final result = await PinService.unlockWithPin(_pinController.text);
+      
 
       if (result == null) {
         _attempts++;
@@ -75,6 +77,7 @@ class _UnlockScreenState extends State<UnlockScreen>
 
       await SocketService.connect();
       await CryptoService.ensureIdentityPublic();
+      //await StorageService.clearSessionKeys();
 
       if (!mounted) return;
       Navigator.of(context).pushNamedAndRemoveUntil('/home', (_) => false);

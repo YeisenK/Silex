@@ -2,9 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../theme/app_theme.dart';
 
-// ─────────────────────────────────────────────────────────
-// Data model for a policy section
-// ─────────────────────────────────────────────────────────
 class _PolicySection {
   final String title;
   final String body;
@@ -21,8 +18,7 @@ const List<_PolicySection> _kSections = [
   _PolicySection(
     icon: Icons.lock_outline,
     title: 'End-to-End Encryption',
-    body:
-        'All messages sent through Silex are encrypted on your device before '
+    body: 'All messages sent through Silex are encrypted on your device before '
         'being transmitted. Only the intended recipient can decrypt and read them. '
         'The server acts solely as a relay for ciphertext — it has no access to '
         'the content of your conversations at any time.',
@@ -30,8 +26,7 @@ const List<_PolicySection> _kSections = [
   _PolicySection(
     icon: Icons.key_outlined,
     title: 'Your Keys, Your Device',
-    body:
-        'Cryptographic key pairs are generated locally on your device and never '
+    body: 'Cryptographic key pairs are generated locally on your device and never '
         'leave it. Private keys are stored only within the secure storage of your '
         'phone. Silex servers store only your public key, which by design cannot '
         'be used to decrypt any message.',
@@ -39,8 +34,7 @@ const List<_PolicySection> _kSections = [
   _PolicySection(
     icon: Icons.phone_outlined,
     title: 'Phone Number & Identity',
-    body:
-        'Registration requires a phone number for identity verification via OTP. '
+    body: 'Registration requires a phone number for identity verification via OTP. '
         'We do not store your phone number in plain text — only a one-way '
         'cryptographic hash (SHA-256) is persisted on the server. This hash '
         'cannot be reversed to obtain your original number.',
@@ -48,8 +42,7 @@ const List<_PolicySection> _kSections = [
   _PolicySection(
     icon: Icons.storage_outlined,
     title: 'What the Server Stores',
-    body:
-        'The server retains the minimum data necessary to operate:\n'
+    body: 'The server retains the minimum data necessary to operate:\n'
         '  · Public keys (for key exchange)\n'
         '  · Session metadata (token hash, device identifier)\n'
         '  · Encrypted message payloads, temporarily, until delivery\n'
@@ -61,8 +54,7 @@ const List<_PolicySection> _kSections = [
   _PolicySection(
     icon: Icons.visibility_off_outlined,
     title: 'Zero Server Knowledge',
-    body:
-        'Silex is designed so that the server cannot read your messages even if '
+    body: 'Silex is designed so that the server cannot read your messages even if '
         'compelled to do so. The architecture follows a zero-trust model: the '
         'server is treated as an untrusted intermediary. Encrypted payloads '
         'stored in transit are opaque to anyone without the recipient\'s '
@@ -71,8 +63,7 @@ const List<_PolicySection> _kSections = [
   _PolicySection(
     icon: Icons.autorenew_outlined,
     title: 'Session & Key Rotation',
-    body:
-        'Sessions are cryptographically bound to a specific device. Each session '
+    body: 'Sessions are cryptographically bound to a specific device. Each session '
         'token is stored as a hash — the raw token is never persisted. '
         'The key exchange scheme is inspired by the Signal Protocol, which '
         'provides forward secrecy properties: past sessions cannot be '
@@ -81,8 +72,7 @@ const List<_PolicySection> _kSections = [
   _PolicySection(
     icon: Icons.photo_outlined,
     title: 'Media & Attachments',
-    body:
-        'Media files are encrypted before upload. References are stored with a '
+    body: 'Media files are encrypted before upload. References are stored with a '
         'composite foreign key that ties them to the encrypted message. Media '
         'is available for a limited window (currently 48 hours) and is removed '
         'from the server after that period. No media is processed or analyzed '
@@ -91,16 +81,14 @@ const List<_PolicySection> _kSections = [
   _PolicySection(
     icon: Icons.share_outlined,
     title: 'No Data Sharing',
-    body:
-        'Silex does not sell, rent, or share your data with third parties for '
+    body: 'Silex does not sell, rent, or share your data with third parties for '
         'advertising, analytics, or any other commercial purpose. No third-party '
         'SDKs with data-collection capabilities are embedded in the application.',
   ),
   _PolicySection(
     icon: Icons.update_outlined,
     title: 'Policy Updates',
-    body:
-        'This policy may be updated as the application evolves. Significant '
+    body: 'This policy may be updated as the application evolves. Significant '
         'changes will be communicated within the app before taking effect. '
         'Continued use of Silex after a policy update constitutes acceptance '
         'of the revised terms.',
@@ -108,16 +96,12 @@ const List<_PolicySection> _kSections = [
   _PolicySection(
     icon: Icons.mail_outline,
     title: 'Contact',
-    body:
-        'If you have questions about this privacy policy or how your data is '
+    body: 'If you have questions about this privacy policy or how your data is '
         'handled, you can reach the developer directly through the project\'s '
         'official repository or contact channel.',
   ),
 ];
 
-// ─────────────────────────────────────────────────────────
-// PrivacyPolicyScreen
-// ─────────────────────────────────────────────────────────
 class PrivacyPolicyScreen extends StatefulWidget {
   const PrivacyPolicyScreen({super.key});
 
@@ -130,7 +114,6 @@ class _PrivacyPolicyScreenState extends State<PrivacyPolicyScreen>
   late AnimationController _fadeCtrl;
   late Animation<double> _fadeAnim;
 
-  // Track which sections are expanded
   final Set<int> _expanded = {};
 
   @override
@@ -191,12 +174,7 @@ class _PrivacyPolicyScreenState extends State<PrivacyPolicyScreen>
           opacity: _fadeAnim,
           child: CustomScrollView(
             slivers: [
-              // ── Header banner ──
-              SliverToBoxAdapter(
-                child: _HeaderBanner(),
-              ),
-
-              // ── Last updated chip ──
+              SliverToBoxAdapter(child: _HeaderBanner()),
               SliverToBoxAdapter(
                 child: Padding(
                   padding: const EdgeInsets.fromLTRB(20, 20, 20, 4),
@@ -206,7 +184,7 @@ class _PrivacyPolicyScreenState extends State<PrivacyPolicyScreen>
                         padding: const EdgeInsets.symmetric(
                             horizontal: 10, vertical: 4),
                         decoration: BoxDecoration(
-                          color: AppTheme.accentColor.withOpacity(0.10),
+                          color: AppTheme.accentColor.withValues(alpha: 0.10),
                           borderRadius: BorderRadius.circular(4),
                           border: Border.all(
                             color: AppTheme.accentColor,
@@ -227,8 +205,6 @@ class _PrivacyPolicyScreenState extends State<PrivacyPolicyScreen>
                   ),
                 ),
               ),
-
-              // ── Intro text ──
               SliverToBoxAdapter(
                 child: Padding(
                   padding:
@@ -249,21 +225,13 @@ class _PrivacyPolicyScreenState extends State<PrivacyPolicyScreen>
                   ),
                 ),
               ),
-
-              // ── Divider ──
               SliverToBoxAdapter(
                 child: Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 20),
-                  child: Divider(
-                    color: AppTheme.accentColor,
-                    height: 1,
-                  ),
+                  child: Divider(color: AppTheme.accentColor, height: 1),
                 ),
               ),
-
               const SliverToBoxAdapter(child: SizedBox(height: 8)),
-
-              // ── Policy sections (accordion) ──
               SliverList(
                 delegate: SliverChildBuilderDelegate(
                   (context, i) {
@@ -278,11 +246,7 @@ class _PrivacyPolicyScreenState extends State<PrivacyPolicyScreen>
                   childCount: _kSections.length,
                 ),
               ),
-
-              // ── Footer ──
-              SliverToBoxAdapter(
-                child: _Footer(),
-              ),
+              SliverToBoxAdapter(child: _Footer()),
             ],
           ),
         ),
@@ -291,9 +255,6 @@ class _PrivacyPolicyScreenState extends State<PrivacyPolicyScreen>
   }
 }
 
-// ─────────────────────────────────────────────────────────
-// Header Banner
-// ─────────────────────────────────────────────────────────
 class _HeaderBanner extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
@@ -303,10 +264,7 @@ class _HeaderBanner extends StatelessWidget {
       decoration: BoxDecoration(
         color: AppTheme.backgroundSecondary,
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(
-          color: AppTheme.accentColor,
-          width: 1,
-        ),
+        border: Border.all(color: AppTheme.accentColor, width: 1),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -315,7 +273,7 @@ class _HeaderBanner extends StatelessWidget {
             width: 44,
             height: 44,
             decoration: BoxDecoration(
-              color: AppTheme.accentColor.withOpacity(0.10),
+              color: AppTheme.accentColor.withValues(alpha: 0.10),
               borderRadius: BorderRadius.circular(8),
             ),
             child: const Icon(
@@ -360,9 +318,6 @@ class _HeaderBanner extends StatelessWidget {
   }
 }
 
-// ─────────────────────────────────────────────────────────
-// Policy Tile (accordion item)
-// ─────────────────────────────────────────────────────────
 class _PolicyTile extends StatelessWidget {
   final _PolicySection section;
   final bool isOpen;
@@ -384,24 +339,16 @@ class _PolicyTile extends StatelessWidget {
           duration: const Duration(milliseconds: 220),
           curve: Curves.easeOut,
           decoration: BoxDecoration(
-            color: isOpen
-                ? AppTheme.backgroundSecondary
-                : AppTheme.backgroundSecondary,
+            color: AppTheme.backgroundSecondary,
             borderRadius: BorderRadius.circular(8),
-            border: Border.all(
-              color: isOpen
-                  ? AppTheme.accentColor
-                  : AppTheme.accentColor,
-              width: 1,
-            ),
+            border: Border.all(color: AppTheme.accentColor, width: 1),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // ── Header row ──
               Padding(
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 16, vertical: 14),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                 child: Row(
                   children: [
                     Icon(
@@ -440,8 +387,6 @@ class _PolicyTile extends StatelessWidget {
                   ],
                 ),
               ),
-
-              // ── Body (animated expand) ──
               AnimatedCrossFade(
                 firstChild: const SizedBox(width: double.infinity, height: 0),
                 secondChild: Padding(
@@ -449,10 +394,7 @@ class _PolicyTile extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Divider(
-                        color: AppTheme.accentColor,
-                        height: 1,
-                      ),
+                      Divider(color: AppTheme.accentColor, height: 1),
                       const SizedBox(height: 12),
                       Text(
                         section.body,
@@ -481,9 +423,6 @@ class _PolicyTile extends StatelessWidget {
   }
 }
 
-// ─────────────────────────────────────────────────────────
-// Footer
-// ─────────────────────────────────────────────────────────
 class _Footer extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
@@ -491,10 +430,7 @@ class _Footer extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(20, 24, 20, 40),
       child: Column(
         children: [
-          Divider(
-            color: AppTheme.accentColor,
-            height: 1,
-          ),
+          Divider(color: AppTheme.accentColor, height: 1),
           const SizedBox(height: 20),
           Row(
             mainAxisAlignment: MainAxisAlignment.center,

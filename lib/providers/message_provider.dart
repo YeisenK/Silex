@@ -1,8 +1,7 @@
-import 'dart:convert';
-
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../core/crypto_service.dart';
 import '../core/storage_service.dart';
+import '../core/local_db.dart';
 
 class IncomingMessage {
   final String messageId;
@@ -42,8 +41,11 @@ class IncomingMessage {
       ratchetKey: map['ratchetKey'] as String? ?? map['ratchet_key'] as String,
       prevCounter: map['prevCounter'] as int? ?? map['prev_counter'] as int,
       msgCounter: map['msgCounter'] as int? ?? map['msg_counter'] as int,
-      messageType: map['messageType'] as String? ?? map['message_type'] as String,
-      senderIdentityKey: map['senderIdentityKey'] as String? ?? map['sender_identity_key'] as String? ?? '',
+      messageType:
+          map['messageType'] as String? ?? map['message_type'] as String,
+      senderIdentityKey: map['senderIdentityKey'] as String? ??
+          map['sender_identity_key'] as String? ??
+          '',
       usedOtpkId: map['usedOtpkId'] as int? ?? map['used_otpk_id'] as int?,
       receivedAt: DateTime.now(),
       plaintext: '',
@@ -76,23 +78,16 @@ class MessagesNotifier extends Notifier<List<IncomingMessage>> {
 
   Future<void> addMessage(Map<String, dynamic> data) async {
     final raw = IncomingMessage._parseRaw(data);
-    print('[X3DH-RECV] senderId: ${raw.senderId}');
-    print('[X3DH-RECV] senderIdentityKey length: ${raw.senderIdentityKey.length}');
-    print('[X3DH-RECV] ratchetKey (ephemeral) length: ${raw.ratchetKey.length}');
-    print('[X3DH-RECV] usedOtpkId: ${raw.usedOtpkId}');
 
     try {
       var sessionKey = await StorageService.getSessionKey(raw.senderId);
-      print('[X3DH-RECV] existing sessionKey: ${sessionKey != null}');
 
       if (sessionKey == null) {
-        print('[X3DH-RECV] performing X3DH receiver...');
         sessionKey = await CryptoService.performX3DHReceiver(
           senderIdentityKey: raw.senderIdentityKey,
           ephemeralPublicKey: raw.ratchetKey,
           usedOtpkId: raw.usedOtpkId,
         );
-        print('[X3DH-RECV] sessionKey: ${base64Encode(sessionKey)}');
         await StorageService.saveSessionKey(raw.senderId, sessionKey);
       }
 
@@ -101,35 +96,40 @@ class MessagesNotifier extends Notifier<List<IncomingMessage>> {
         iv: raw.iv,
         sessionKey: sessionKey,
       );
-      print('[X3DH-RECV] decrypted: $plaintext');
 
-      state = [...state, raw.copyWithPlaintext(plaintext)];
-    } catch (e, stack) {
-      print('[X3DH-RECV] ERROR: $e');
-      print('[X3DH-RECV] STACK: $stack');
+      final message = raw.copyWithPlaintext(plaintext);
+      state = [...state, message];
+
+      // persist to local DB
+      await LocalDb.insertMessage(
+        id: message.messageId,
+        chatId: message.senderId,
+        text: plaintext,
+        time:
+            '${message.receivedAt.hour}:${message.receivedAt.minute.toString().padLeft(2, '0')}',
+        isSentByMe: false,
+        timestamp: message.receivedAt,
+      );
+    } catch (_) {
       state = [...state, raw.copyWithPlaintext('[decryption failed]')];
     }
   }
 
-  
-
-    void markAsRead(String senderId) {
-      for (final m in state) {
-        if (m.senderId == senderId) {
-          _readMessageIds.add(m.messageId);
-        }
+  void markAsRead(String senderId) {
+    for (final m in state) {
+      if (m.senderId == senderId) {
+        _readMessageIds.add(m.messageId);
       }
-      state = [...state];
     }
+    state = [...state];
+  }
 
-    bool isRead(String messageId) => _readMessageIds.contains(messageId);
+  bool isRead(String messageId) => _readMessageIds.contains(messageId);
 
-    void clearMessages() {
-      state = [];
-      _readMessageIds.clear();
-    }
-
-  
+  void clearMessages() {
+    state = [];
+    _readMessageIds.clear();
+  }
 }
 
 final messagesProvider =
@@ -159,6 +159,16 @@ class SentMessagesNotifier extends Notifier<List<SentMessage>> {
 
   void addMessage(SentMessage message) {
     state = [...state, message];
+
+    // persist to local DB
+    LocalDb.insertMessage(
+      id: message.messageId,
+      chatId: message.recipientId,
+      text: message.ciphertext,
+      time: message.time,
+      isSentByMe: true,
+      timestamp: message.sentAt,
+    );
   }
 }
 

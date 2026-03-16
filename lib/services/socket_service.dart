@@ -1,26 +1,24 @@
-import 'package:socket_io_client/socket_io_client.dart' as IO;
+import 'package:socket_io_client/socket_io_client.dart' as io;
 import '../core/constants.dart';
 import '../core/storage_service.dart';
 import 'message_service.dart';
 
 class SocketService {
-  static IO.Socket? _socket;
+  static io.Socket? _socket;
 
-  // Callback that is called when a message arrives
   static Function(Map<String, dynamic>)? onMessageReceived;
 
   static bool get isConnected => _socket?.connected ?? false;
 
-
   static Future<void> connect() async {
-  if (isConnected) return;
+    if (isConnected) return;
 
-  final token = await StorageService.getJwt();
+    final token = await StorageService.getJwt();
     if (token == null) return;
 
-    _socket = IO.io(
+    _socket = io.io(
       AppConstants.wsUrl,
-      IO.OptionBuilder()
+      io.OptionBuilder()
           .setTransports(['websocket'])
           .disableAutoConnect()
           .setExtraHeaders({'authorization': 'Bearer $token'})
@@ -28,9 +26,6 @@ class SocketService {
     );
 
     _socket!.onConnect((_) async {
-      print('[Socket] Connected');
-      
-      // download messages that arrived while it was offline
       try {
         final pending = await MessageService.getPendingMessages();
         if (pending.isNotEmpty) {
@@ -39,20 +34,13 @@ class SocketService {
               onMessageReceived!(Map<String, dynamic>.from(message));
             }
           }
-          print('[Socket] Delivered ${pending.length} pending messages');
         }
-      } catch (e) {
-        print('[Socket] Error fetching pending messages: $e');
-      }
+      } catch (_) {}
     });
 
-    _socket!.onDisconnect((_) {
-      print('[Socket] Disconnected');
-    });
+    _socket!.onDisconnect((_) {});
 
-    _socket!.onConnectError((error) {
-      print('[Socket] Connection error: $error');
-    });
+    _socket!.onConnectError((_) {});
 
     _socket!.on('message', (data) {
       if (onMessageReceived != null && data is Map<String, dynamic>) {
@@ -62,7 +50,6 @@ class SocketService {
 
     _socket!.connect();
   }
-
 
   static void disconnect() {
     _socket?.disconnect();
@@ -74,6 +61,4 @@ class SocketService {
     disconnect();
     await connect();
   }
-
-
 }
