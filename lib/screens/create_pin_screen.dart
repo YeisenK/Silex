@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:silex/services/notification_service.dart';
 import '../core/pin_service.dart';
 import '../core/crypto_service.dart';
 import '../services/socket_service.dart';
@@ -47,6 +48,7 @@ class _CreatePinScreenState extends State<CreatePinScreen> {
       await PinService.unlockWithPin(_pinController.text);
       await SocketService.connect();
       await CryptoService.ensureIdentityPublic();
+      await NotificationService.initialize();
       if (!mounted) return;
       Navigator.of(context).pushNamedAndRemoveUntil('/home', (_) => false);
     } catch (e) {

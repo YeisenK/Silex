@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:silex/services/notification_service.dart';
 import 'package:silex/services/profile_service.dart';
 //import 'package:silex/core/storage_service.dart';
 import '../core/pin_service.dart';
@@ -78,6 +79,7 @@ class _UnlockScreenState extends State<UnlockScreen>
 
       await SocketService.connect();
       await CryptoService.ensureIdentityPublic();
+      await NotificationService.initialize();
       ProfileService.syncIfNeeded();
       //await StorageService.clearSessionKeys();
 

@@ -1,3 +1,4 @@
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:silex/core/pin_service.dart';
@@ -6,23 +7,26 @@ import 'package:silex/providers/message_provider.dart';
 import 'package:silex/screens/chat_list_screen.dart';
 import 'package:silex/screens/login_screen.dart';
 import 'package:silex/screens/unlock_screen.dart';
+import 'package:silex/services/notification_service.dart';
 import 'package:silex/services/socket_service.dart';
 import 'package:silex/core/crypto_service.dart';
 import 'package:silex/theme/app_theme.dart';
+import 'firebase_options.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+
   final isLoggedIn = await StorageService.getJwt() != null;
   final hasPinConfigured = isLoggedIn && await PinService.isPinConfigured();
 
-  // only auto-connect if logged in WITHOUT pin (pin unlock will connect later)
   if (isLoggedIn && !hasPinConfigured) {
     await SocketService.connect();
-    //await StorageService.clearSessionKeys();
     await CryptoService.ensureIdentityPublic();
+    await NotificationService.initialize();
   }
-  
+
   runApp(
     ProviderScope(
       child: MyApp(

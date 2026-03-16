@@ -26,6 +26,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   final ScrollController _scrollController = ScrollController();
   List<_TimedMessage> _history = [];
   bool _historyLoaded = false;
+  int _lastMessageCount = 0;
 
   static const Color backgroundColor = AppTheme.backgroundPrimary;
   static const Color secondaryBackground = AppTheme.backgroundSecondary;
@@ -293,9 +294,20 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                     ...newSent,
                   ];
 
-                  allMessages
-                      .sort((a, b) => a.timestamp.compareTo(b.timestamp));
+                  allMessages.sort((a, b) => a.timestamp.compareTo(b.timestamp));
 
+                    if (allMessages.length != _lastMessageCount) {
+                      _lastMessageCount = allMessages.length;
+                      WidgetsBinding.instance.addPostFrameCallback((_) {
+                        if (_scrollController.hasClients) {
+                          _scrollController.animateTo(
+                            _scrollController.position.maxScrollExtent,
+                            duration: const Duration(milliseconds: 300),
+                            curve: Curves.easeOut,
+                          );
+                        }
+                      });
+                    }
                   if (!_historyLoaded) {
                     return const Center(
                       child: CircularProgressIndicator(
@@ -352,6 +364,10 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                     child: TextField(
                       controller: _messageController,
                       style: const TextStyle(color: textPrimary),
+                      maxLines: 5,
+                      minLines: 1,
+                      textInputAction: TextInputAction.newline,
+                      keyboardType: TextInputType.multiline,
                       decoration: const InputDecoration(
                         hintText: 'Message',
                         hintStyle: TextStyle(color: textSecondary),

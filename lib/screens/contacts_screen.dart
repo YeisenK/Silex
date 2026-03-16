@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:silex/theme/app_theme.dart';
+import '../core/local_db.dart';
 import '../widgets/user_avatar.dart';
 import '../models/contact.dart';
 import '../models/chat.dart';
@@ -33,23 +34,33 @@ class _ContactsScreenState extends State<ContactsScreen> {
         _contacts = contacts;
         _isLoading = false;
       });
-      _fetchAvatars();
+      await _loadCachedAvatars();
+      _fetchAvatarsFromServer();
     }
   }
 
-  Future<void> _fetchAvatars() async {
+  Future<void> _loadCachedAvatars() async {
     for (final contact in _contacts) {
-      if (_avatarCache.containsKey(contact.id)) continue;
+      final cached = await LocalDb.getCachedAvatar(contact.id);
+      if (cached != null && mounted) {
+        setState(() => _avatarCache[contact.id] = cached);
+      }
+    }
+  }
+
+  Future<void> _fetchAvatarsFromServer() async {
+    for (final contact in _contacts) {
       try {
         final profile = await ProfileService.getProfile(contact.id);
         final avatar = profile['avatarBase64'] as String?;
-        if (mounted) {
-          setState(() {
-            _avatarCache[contact.id] = avatar;
-          });
+        if (avatar != null) {
+          await LocalDb.cacheAvatar(contact.id, avatar);
+          if (mounted) {
+            setState(() => _avatarCache[contact.id] = avatar);
+          }
         }
       } catch (_) {
-        _avatarCache[contact.id] = null;
+        // offline — cached version already loaded
       }
     }
   }

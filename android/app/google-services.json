@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "664317060022",
+    "project_id": "silex-e598b",
+    "storage_bucket": "silex-e598b.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:664317060022:android:1358f549688ee664ea1717",
+        "android_client_info": {
+          "package_name": "com.example.silex"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAqiexmzgZDIg6EKT3XscI3Vo5I5s52MrU"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

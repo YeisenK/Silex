@@ -116,7 +116,7 @@ class CryptoService {
     final nonce = algorithm.newNonce();
 
     final secretBox = await algorithm.encrypt(
-      plaintext.codeUnits,
+      utf8.encode(plaintext),
       secretKey: secretKey,
       nonce: nonce,
     );
@@ -150,7 +150,7 @@ class CryptoService {
       secretKey: secretKey,
     );
 
-    return String.fromCharCodes(plaintext);
+    return utf8.decode(plaintext);
   }
 
   static Future<Map<String, dynamic>> performX3DH({
