@@ -4,6 +4,7 @@ import '../widgets/user_avatar.dart';
 import '../models/contact.dart';
 import '../models/chat.dart';
 import '../services/contacts_service.dart';
+import '../services/profile_service.dart';
 import 'add_contact_screen.dart';
 import 'chat_screen.dart';
 
@@ -17,12 +18,7 @@ class ContactsScreen extends StatefulWidget {
 class _ContactsScreenState extends State<ContactsScreen> {
   List<Contact> _contacts = [];
   bool _isLoading = true;
-
-  static const Color backgroundColor = AppTheme.backgroundPrimary;
-  static const Color secondaryBackground = AppTheme.backgroundSecondary;
-  static const Color accentColor = AppTheme.accentColor;
-  static const Color textPrimary = AppTheme.textPrimary;
-  static const Color textSecondary = AppTheme.textSecondary;
+  final Map<String, String?> _avatarCache = {};
 
   @override
   void initState() {
@@ -37,6 +33,24 @@ class _ContactsScreenState extends State<ContactsScreen> {
         _contacts = contacts;
         _isLoading = false;
       });
+      _fetchAvatars();
+    }
+  }
+
+  Future<void> _fetchAvatars() async {
+    for (final contact in _contacts) {
+      if (_avatarCache.containsKey(contact.id)) continue;
+      try {
+        final profile = await ProfileService.getProfile(contact.id);
+        final avatar = profile['avatarBase64'] as String?;
+        if (mounted) {
+          setState(() {
+            _avatarCache[contact.id] = avatar;
+          });
+        }
+      } catch (_) {
+        _avatarCache[contact.id] = null;
+      }
     }
   }
 
@@ -49,6 +63,7 @@ class _ContactsScreenState extends State<ContactsScreen> {
       time: '',
       unreadCount: 0,
       messages: [],
+      avatarBase64: _avatarCache[contact.id],
     );
 
     Navigator.push(
@@ -60,26 +75,26 @@ class _ContactsScreenState extends State<ContactsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: backgroundColor,
+      backgroundColor: AppTheme.backgroundPrimary,
       appBar: AppBar(
-        backgroundColor: secondaryBackground,
-        iconTheme: const IconThemeData(color: textPrimary),
-        title: const Text('Contacts', style: TextStyle(color: textPrimary)),
+        backgroundColor: AppTheme.backgroundSecondary,
+        iconTheme: const IconThemeData(color: AppTheme.textPrimary),
+        title: const Text('Contacts', style: TextStyle(color: AppTheme.textPrimary)),
         actions: const [
-          Icon(Icons.search, color: textPrimary),
+          Icon(Icons.search, color: AppTheme.textPrimary),
           SizedBox(width: 12),
-          Icon(Icons.more_vert, color: textPrimary),
+          Icon(Icons.more_vert, color: AppTheme.textPrimary),
           SizedBox(width: 12),
         ],
       ),
       body: _isLoading
-          ? const Center(child: CircularProgressIndicator(color: accentColor))
+          ? const Center(child: CircularProgressIndicator(color: AppTheme.accentColor))
           : _contacts.isEmpty
               ? const Center(
                   child: Text(
                     'No contacts yet.\nTap + to add one.',
                     textAlign: TextAlign.center,
-                    style: TextStyle(color: textSecondary, fontSize: 16),
+                    style: TextStyle(color: AppTheme.textSecondary, fontSize: 16),
                   ),
                 )
               : ListView.builder(
@@ -91,26 +106,27 @@ class _ContactsScreenState extends State<ContactsScreen> {
                       leading: UserAvatar(
                         avatarPath: contact.avatar,
                         name: contact.name,
+                        avatarBase64: _avatarCache[contact.id],
                       ),
                       title: Text(
                         contact.name,
                         style: const TextStyle(
-                          color: textPrimary,
+                          color: AppTheme.textPrimary,
                           fontWeight: FontWeight.w600,
                           fontSize: 16,
                         ),
                       ),
                       subtitle: Text(
                         contact.phoneNumber,
-                        style: const TextStyle(color: textSecondary, fontSize: 14),
+                        style: const TextStyle(color: AppTheme.textSecondary, fontSize: 14),
                       ),
-                      trailing: const Icon(Icons.message_outlined, color: accentColor),
+                      trailing: const Icon(Icons.message_outlined, color: AppTheme.accentColor),
                       onTap: () => _openChat(contact),
                     );
                   },
                 ),
       floatingActionButton: FloatingActionButton(
-        backgroundColor: accentColor,
+        backgroundColor: AppTheme.accentColor,
         onPressed: () async {
           final result = await showModalBottomSheet<Contact>(
             context: context,

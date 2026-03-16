@@ -43,7 +43,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     setState(() => _isPickingImage = true);
 
     try {
-      final result = await ProfileService.pickAndUploadAvatar();
+      final result = await ProfileService.pickImage();
       if (result != null) {
         setState(() {
           _avatarBase64 = result;
@@ -53,7 +53,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to upload photo: $e')),
+        SnackBar(content: Text('Failed to pick photo: $e')),
       );
     } finally {
       if (mounted) setState(() => _isPickingImage = false);
@@ -118,8 +118,6 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         child: Column(
           children: [
             const SizedBox(height: 16),
-
-            // ── Avatar ──
             GestureDetector(
               onTap: _pickAvatar,
               child: Stack(
@@ -176,9 +174,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                 ],
               ),
             ),
-
             const SizedBox(height: 8),
-
             Text(
               'Tap to change photo',
               style: TextStyle(
@@ -187,10 +183,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                 color: AppTheme.textSecondary.withValues(alpha: 0.6),
               ),
             ),
-
             const SizedBox(height: 32),
-
-            // ── Name field ──
             TextField(
               controller: _nameController,
               style: const TextStyle(
@@ -219,9 +212,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                 ),
               ),
             ),
-
             const SizedBox(height: 16),
-
             Text(
               'This name will be visible to people you message who don\'t have you in their contacts.',
               style: TextStyle(

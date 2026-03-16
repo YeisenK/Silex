@@ -63,7 +63,6 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         _historyLoaded = true;
       });
 
-      // scroll to bottom after history loads
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (_scrollController.hasClients) {
           _scrollController.jumpTo(_scrollController.position.maxScrollExtent);
@@ -152,6 +151,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                 UserAvatar(
                   avatarPath: widget.chat.avatar,
                   name: widget.chat.name,
+                  avatarBase64: widget.chat.avatarBase64,
                 ),
                 if (widget.chat.isOnline)
                   Positioned(
@@ -249,7 +249,6 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
               ),
               child: Builder(
                 builder: (context) {
-                  // new messages from this session (not yet in history)
                   final incomingMessages = ref
                       .watch(messagesProvider)
                       .where((m) => m.senderId == widget.chat.id)
@@ -260,7 +259,6 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                       .where((m) => m.recipientId == widget.chat.id)
                       .toList();
 
-                  // IDs already in history to avoid duplicates
                   final historyIds =
                       _history.map((h) => h.message.id).toSet();
 

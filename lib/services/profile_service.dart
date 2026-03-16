@@ -13,16 +13,39 @@ class ProfileService {
     return Options(headers: {'Authorization': 'Bearer $token'});
   }
 
-  /// Get my own profile
   static Future<Map<String, dynamic>> getMyProfile() async {
-    final response = await _dio.get(
-      '/users/profile/me',
-      options: await _authOptions(),
-    );
-    return response.data as Map<String, dynamic>;
+    // try local cache first
+    final localName = await StorageService.getKey('profile_name');
+    final localAvatar = await StorageService.getKey('profile_avatar');
+
+    try {
+      final response = await _dio.get(
+        '/users/profile/me',
+        options: await _authOptions(),
+      );
+      final data = response.data as Map<String, dynamic>;
+
+      // update local cache with server data
+      if (data['displayName'] != null) {
+        await StorageService.saveKey('profile_name', data['displayName']);
+      }
+      if (data['avatarBase64'] != null) {
+        await StorageService.saveKey('profile_avatar', data['avatarBase64']);
+      }
+
+      // sync pending avatar if exists
+      _syncPendingAvatar();
+
+      return data;
+    } catch (_) {
+      // offline — return local cache
+      return {
+        'displayName': localName,
+        'avatarBase64': localAvatar,
+      };
+    }
   }
 
-  /// Get any user's profile
   static Future<Map<String, dynamic>> getProfile(String userId) async {
     final response = await _dio.get(
       '/users/profile/$userId',
@@ -31,17 +54,21 @@ class ProfileService {
     return response.data as Map<String, dynamic>;
   }
 
-  /// Update display name
   static Future<void> updateDisplayName(String name) async {
-    await _dio.put(
-      '/users/profile',
-      data: {'displayName': name},
-      options: await _authOptions(),
-    );
+    await StorageService.saveKey('profile_name', name);
+    try {
+      await _dio.put(
+        '/users/profile',
+        data: {'displayName': name},
+        options: await _authOptions(),
+      );
+    } catch (_) {
+      // saved locally, will sync later
+    }
   }
 
-  /// Pick image from gallery, compress, and upload as base64
-  static Future<String?> pickAndUploadAvatar() async {
+  /// Pick image, save locally immediately, upload in background
+  static Future<String?> pickImage() async {
     final picker = ImagePicker();
     final picked = await picker.pickImage(
       source: ImageSource.gallery,
@@ -55,21 +82,43 @@ class ProfileService {
     final bytes = await File(picked.path).readAsBytes();
     final base64String = base64Encode(bytes);
 
-    await _dio.put(
-      '/users/profile',
-      data: {'avatarBase64': base64String},
-      options: await _authOptions(),
-    );
+    // save locally first — instant UI update
+    await StorageService.saveKey('profile_avatar', base64String);
+
+    // try upload in background
+    _uploadAvatar(base64String);
 
     return base64String;
   }
 
-  /// Upload a base64 avatar directly
-  static Future<void> updateAvatar(String base64String) async {
-    await _dio.put(
-      '/users/profile',
-      data: {'avatarBase64': base64String},
-      options: await _authOptions(),
-    );
+  static Future<void> _uploadAvatar(String base64String) async {
+    try {
+      await _dio.put(
+        '/users/profile',
+        data: {'avatarBase64': base64String},
+        options: await _authOptions(),
+      );
+      // uploaded — clear pending flag
+      await StorageService.deleteKey('profile_avatar_pending');
+    } catch (_) {
+      // mark as pending for later sync
+      await StorageService.saveKey('profile_avatar_pending', 'true');
+    }
+  }
+
+  /// Call on app startup to sync any pending avatar
+  static Future<void> _syncPendingAvatar() async {
+    final pending = await StorageService.getKey('profile_avatar_pending');
+    if (pending != 'true') return;
+
+    final avatar = await StorageService.getKey('profile_avatar');
+    if (avatar == null) return;
+
+    _uploadAvatar(avatar);
+  }
+
+  /// Call this on app startup / after unlock
+  static Future<void> syncIfNeeded() async {
+    _syncPendingAvatar();
   }
 }

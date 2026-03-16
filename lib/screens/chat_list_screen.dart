@@ -78,7 +78,7 @@ class ChatsTab extends ConsumerStatefulWidget {
 class _ChatsTabState extends ConsumerState<ChatsTab> {
   List<Contact> _contacts = [];
   List<_ChatPreview> _dbPreviews = [];
-  final Map<String, _SenderProfile> _unknownProfiles = {};
+  final Map<String, _SenderProfile> _profileCache = {};
 
   @override
   void initState() {
@@ -115,9 +115,9 @@ class _ChatsTabState extends ConsumerState<ChatsTab> {
     }
   }
 
-  Future<_SenderProfile> _fetchUnknownProfile(String userId) async {
-    if (_unknownProfiles.containsKey(userId)) {
-      return _unknownProfiles[userId]!;
+  Future<_SenderProfile> _fetchProfile(String userId) async {
+    if (_profileCache.containsKey(userId)) {
+      return _profileCache[userId]!;
     }
     try {
       final profile = await ProfileService.getProfile(userId);
@@ -125,11 +125,11 @@ class _ChatsTabState extends ConsumerState<ChatsTab> {
         displayName: profile['displayName'] as String?,
         avatarBase64: profile['avatarBase64'] as String?,
       );
-      _unknownProfiles[userId] = result;
+      _profileCache[userId] = result;
       return result;
     } catch (_) {
       final fallback = _SenderProfile();
-      _unknownProfiles[userId] = fallback;
+      _profileCache[userId] = fallback;
       return fallback;
     }
   }
@@ -192,15 +192,12 @@ class _ChatsTabState extends ConsumerState<ChatsTab> {
     final incoming = ref.watch(messagesProvider);
     final sent = ref.watch(sentMessagesProvider);
 
-    // merge DB previews with in-memory messages
     final Map<String, _ChatPreview> chatPreviews = {};
 
-    // start with DB previews
     for (final p in _dbPreviews) {
       chatPreviews[p.userId] = p;
     }
 
-    // overlay with in-memory incoming
     for (final m in incoming) {
       final isRead = ref.read(messagesProvider.notifier).isRead(m.messageId);
       final existing = chatPreviews[m.senderId];
@@ -221,7 +218,6 @@ class _ChatsTabState extends ConsumerState<ChatsTab> {
       }
     }
 
-    // overlay with in-memory sent
     for (final m in sent) {
       final existing = chatPreviews[m.recipientId];
       if (existing == null || m.sentAt.isAfter(existing.timestamp)) {
@@ -270,41 +266,25 @@ class _ChatsTabState extends ConsumerState<ChatsTab> {
                 final timeStr =
                     '${preview.timestamp.hour}:${preview.timestamp.minute.toString().padLeft(2, '0')}';
 
-                if (isUnknown) {
-                  return FutureBuilder<_SenderProfile>(
-                    future: _fetchUnknownProfile(preview.userId),
-                    builder: (context, snapshot) {
-                      final profile = snapshot.data;
-                      final name = profile?.displayName ??
-                          preview.userId.substring(0, 8);
-                      final avatarB64 = profile?.avatarBase64;
+                return FutureBuilder<_SenderProfile>(
+                  future: _fetchProfile(preview.userId),
+                  builder: (context, snapshot) {
+                    final profile = snapshot.data;
+                    final name = contact?.name ??
+                        profile?.displayName ??
+                        preview.userId.substring(0, 8);
+                    final avatarB64 = profile?.avatarBase64;
 
-                      return _buildChatTile(
-                        context: context,
-                        preview: preview,
-                        name: name,
-                        avatarWidget: avatarB64 != null
-                            ? CircleAvatar(
-                                radius: 24,
-                                backgroundImage:
-                                    MemoryImage(base64Decode(avatarB64)),
-                              )
-                            : null,
-                        timeStr: timeStr,
-                        isUnknown: true,
-                      );
-                    },
-                  );
-                }
-
-                return _buildChatTile(
-                  context: context,
-                  preview: preview,
-                  name: contact.name,
-                  avatarWidget: null,
-                  avatarPath: contact.avatar,
-                  timeStr: timeStr,
-                  isUnknown: false,
+                    return _buildChatTile(
+                      context: context,
+                      preview: preview,
+                      name: name,
+                      avatarBase64: avatarB64,
+                      avatarPath: contact?.avatar ?? '',
+                      timeStr: timeStr,
+                      isUnknown: isUnknown,
+                    );
+                  },
                 );
               },
             ),
@@ -320,16 +300,19 @@ class _ChatsTabState extends ConsumerState<ChatsTab> {
     required BuildContext context,
     required _ChatPreview preview,
     required String name,
-    Widget? avatarWidget,
-    String? avatarPath,
+    String? avatarBase64,
+    required String avatarPath,
     required String timeStr,
     required bool isUnknown,
   }) {
     return ListTile(
       contentPadding:
           const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      leading: avatarWidget ??
-          UserAvatar(avatarPath: avatarPath ?? '', name: name),
+      leading: UserAvatar(
+        avatarPath: avatarPath,
+        name: name,
+        avatarBase64: avatarBase64,
+      ),
       title: Text(
         name,
         style: TextStyle(
@@ -377,11 +360,12 @@ class _ChatsTabState extends ConsumerState<ChatsTab> {
         final chat = Chat(
           id: preview.userId,
           name: name,
-          avatar: avatarPath ?? '',
+          avatar: avatarPath,
           lastMessage: preview.lastMessage,
           time: timeStr,
           unreadCount: 0,
           messages: [],
+          avatarBase64: avatarBase64,
         );
         Navigator.push(
           context,
@@ -488,23 +472,11 @@ class _SettingsTabState extends State<SettingsTab> {
                   onTap: _openEditProfile,
                   child: Column(
                     children: [
-                      CircleAvatar(
+                      UserAvatar(
+                        avatarPath: '',
+                        name: _displayName ?? '?',
                         radius: 40,
-                        backgroundColor: AppTheme.backgroundSecondary,
-                        backgroundImage: _avatarBase64 != null
-                            ? MemoryImage(base64Decode(_avatarBase64!))
-                            : null,
-                        child: _avatarBase64 == null
-                            ? Text(
-                                (_displayName ?? '?')[0].toUpperCase(),
-                                style: const TextStyle(
-                                  fontSize: 32,
-                                  color: AppTheme.textSecondary,
-                                  fontFamily: 'BarlowCondensed',
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              )
-                            : null,
+                        avatarBase64: _avatarBase64,
                       ),
                       const SizedBox(height: 8),
                       Text(

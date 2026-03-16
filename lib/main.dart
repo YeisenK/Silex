@@ -22,7 +22,7 @@ void main() async {
     //await StorageService.clearSessionKeys();
     await CryptoService.ensureIdentityPublic();
   }
-
+  
   runApp(
     ProviderScope(
       child: MyApp(
