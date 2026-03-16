@@ -1,19 +1,25 @@
 import 'package:flutter/material.dart';
+import 'package:silex/core/crypto_service.dart';
+import 'package:silex/models/message.dart';
+import 'package:silex/services/keys_service.dart';
 import 'package:silex/theme/app_theme.dart';
 import '../widgets/chat_bubble.dart';
 import '../widgets/user_avatar.dart';
 import '../models/chat.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../providers/message_provider.dart';
+import '../services/message_service.dart';
+import '../core/storage_service.dart';
 
-class ChatScreen extends StatefulWidget {
+class ChatScreen extends ConsumerStatefulWidget {
   final Chat chat;
-
   const ChatScreen({super.key, required this.chat});
 
   @override
-  State<ChatScreen> createState() => _ChatScreenState();
+  ConsumerState<ChatScreen> createState() => _ChatScreenState();
 }
 
-class _ChatScreenState extends State<ChatScreen> {
+class _ChatScreenState extends ConsumerState<ChatScreen> {
   final TextEditingController _messageController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
 
@@ -23,6 +29,62 @@ class _ChatScreenState extends State<ChatScreen> {
   static const Color accentColor = AppTheme.accentColor;
   static const Color textPrimary = AppTheme.textPrimary;
   static const Color textSecondary = AppTheme.textSecondary;
+
+  Future<void> _sendMessage(String text) async {
+    try {
+      var sessionKey = await StorageService.getSessionKey(widget.chat.id);
+      String? ephemeralKey;
+      int? usedOtpkId;
+
+      if (sessionKey == null) {
+        final keyBundle = await KeysService.getKeyBundle(widget.chat.id);
+        final x3dhResult = await CryptoService.performX3DH(
+          recipientKeyBundle: keyBundle,
+        );
+        sessionKey = x3dhResult['sessionKey'] as List<int>;
+        ephemeralKey = x3dhResult['ephemeralPublicKey'] as String;
+        usedOtpkId = keyBundle['one_time_prekey']?['id'] as int?;
+        await StorageService.saveSessionKey(widget.chat.id, sessionKey);
+      }
+
+      final identityKey = (await StorageService.getKey('identity_public'))!;
+
+      final encrypted = await CryptoService.encryptMessage(
+        plaintext: text,
+        sessionKey: sessionKey,
+      );
+
+      await MessageService.sendMessage(
+        recipientId: widget.chat.id,
+        ratchetKey: ephemeralKey ?? identityKey,
+        prevCounter: 0,
+        msgCounter: 0,
+        ciphertext: encrypted['ciphertext']!,
+        iv: encrypted['iv']!,
+        senderIdentityKey: identityKey,
+        usedOtpkId: usedOtpkId,
+      );
+
+      ref.read(sentMessagesProvider.notifier).addMessage(
+        SentMessage(
+          messageId: DateTime.now().millisecondsSinceEpoch.toString(),
+          recipientId: widget.chat.id,
+          ciphertext: text,
+          time: '${DateTime.now().hour}:${DateTime.now().minute.toString().padLeft(2, '0')}',
+        ),
+      );
+
+      _scrollController.animateTo(
+        _scrollController.position.maxScrollExtent,
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeOut,
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error: $e')),
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -79,9 +141,7 @@ class _ChatScreenState extends State<ChatScreen> {
                     widget.chat.isOnline ? 'Online' : 'Offline',
                     style: TextStyle(
                       fontSize: 12,
-                      color: widget.chat.isOnline
-                          ? accentColor
-                          : textSecondary,
+                      color: widget.chat.isOnline ? accentColor : textSecondary,
                     ),
                   ),
                 ],
@@ -106,44 +166,71 @@ class _ChatScreenState extends State<ChatScreen> {
                 gradient: LinearGradient(
                   begin: Alignment.topCenter,
                   end: Alignment.bottomCenter,
-                  colors: [
-                    backgroundColor,
-                    secondaryBackground,
-                  ],
+                  colors: [backgroundColor, secondaryBackground],
                 ),
               ),
-              child: ListView.builder(
-                controller: _scrollController,
-                padding: const EdgeInsets.all(16),
-                itemCount: widget.chat.messages.length + 1,
-                itemBuilder: (context, index) {
-                  if (index == 0) {
-                    return Center(
-                      child: Container(
-                        margin: const EdgeInsets.symmetric(vertical: 16),
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 6,
-                        ),
-                        decoration: BoxDecoration(
-                          color: inputColor,
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                        child: Text(
-                          'Today ${widget.chat.messages.isNotEmpty ? widget.chat.messages[0].time : ''}',
-                          style: const TextStyle(
-                            color: textSecondary,
-                            fontSize: 12,
-                          ),
-                        ),
-                      ),
-                    );
-                  }
+              child: Builder(
+                builder: (context) {
+                  final incomingMessages = ref
+                      .watch(messagesProvider)
+                      .where((m) => m.senderId == widget.chat.id)
+                      .toList();
 
-                  final message = widget.chat.messages[index - 1];
-                  return ChatBubble(
-                    message: message,
-                    isSentByMe: message.isSentByMe,
+                  final sentMessages = ref
+                      .watch(sentMessagesProvider)
+                      .where((m) => m.recipientId == widget.chat.id)
+                      .toList();
+
+                  final allMessages = [
+                    ...widget.chat.messages,
+                    ...incomingMessages.map((m) => Message(
+                          id: m.messageId,
+                          text: m.ciphertext,
+                          time: '${m.receivedAt.hour}:${m.receivedAt.minute.toString().padLeft(2, '0')}',
+                          isSentByMe: false,
+                        )),
+                    ...sentMessages.map((m) => Message(
+                          id: m.messageId,
+                          text: m.ciphertext,
+                          time: m.time,
+                          isSentByMe: true,
+                        )),
+                  ];
+
+                  return ListView.builder(
+                    controller: _scrollController,
+                    padding: const EdgeInsets.all(16),
+                    itemCount: allMessages.length + 1,
+                    itemBuilder: (context, index) {
+                      if (index == 0) {
+                        return Center(
+                          child: Container(
+                            margin: const EdgeInsets.symmetric(vertical: 16),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 6,
+                            ),
+                            decoration: BoxDecoration(
+                              color: inputColor,
+                              borderRadius: BorderRadius.circular(16),
+                            ),
+                            child: const Text(
+                              'Today',
+                              style: TextStyle(
+                                color: textSecondary,
+                                fontSize: 12,
+                              ),
+                            ),
+                          ),
+                        );
+                      }
+
+                      final message = allMessages[index - 1];
+                      return ChatBubble(
+                        message: message,
+                        isSentByMe: message.isSentByMe,
+                      );
+                    },
                   );
                 },
               ),
@@ -192,15 +279,11 @@ class _ChatScreenState extends State<ChatScreen> {
                   ),
                   child: IconButton(
                     icon: const Icon(Icons.send),
-                    onPressed: () {
-                      if (_messageController.text.isNotEmpty) {
-                        _messageController.clear();
-                        _scrollController.animateTo(
-                          0,
-                          duration: const Duration(milliseconds: 300),
-                          curve: Curves.easeOut,
-                        );
-                      }
+                    onPressed: () async {
+                      final text = _messageController.text.trim();
+                      if (text.isEmpty) return;
+                      _messageController.clear();
+                      await _sendMessage(text);
                     },
                     color: Colors.white,
                   ),

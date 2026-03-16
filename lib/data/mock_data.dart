@@ -4,7 +4,7 @@ import '../models/contact.dart';
   
   final List<Chat> mockChats = [
     Chat(
-      id: '1',
+      id: '4deb287e-209e-4799-aa08-aafbb9a2806f',
       name: 'PopDog',
       avatar: 'assets/avatars/popdog.jpg',
       lastMessage: 'GUAU!?',

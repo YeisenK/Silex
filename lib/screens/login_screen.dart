@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../theme/app_theme.dart';
 import 'privacy_policy_screen.dart';
+import '../services/auth_service.dart';
+import 'otp_screen.dart';
 
 // ─────────────────────────────────────────────────────────
 // Country model
@@ -103,14 +105,22 @@ class _LoginScreenState extends State<LoginScreen>
 
     setState(() => _isLoading = true);
 
-    // TODO: call POST /auth/request-otp with { phone: fullPhone }
-    await Future.delayed(const Duration(seconds: 2));
+    try {
+      final otp = await AuthService.requestOtp(fullPhone);
 
-    if (!mounted) return;
-    setState(() => _isLoading = false);
+      if (!mounted) return;
+      setState(() => _isLoading = false);
 
-    // TODO: navigate to OTP screen
-    // Navigator.of(context).push(...)
+      Navigator.of(context).push(MaterialPageRoute(
+        builder: (_) => OtpScreen(phone: fullPhone, devOtp: otp),
+      ));
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _isLoading = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error: ${e.toString()}')),
+      );
+    }
   }
 
   @override
