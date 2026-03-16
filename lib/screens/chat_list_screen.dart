@@ -1,9 +1,13 @@
 import 'package:flutter/material.dart';
-import '../data/mock_data.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../theme/app_theme.dart';
+import '../models/chat.dart';
+import '../models/contact.dart';
+import '../services/contacts_service.dart';
+import '../providers/message_provider.dart';
+import '../widgets/user_avatar.dart';
 import 'chat_screen.dart';
 import 'contacts_screen.dart';
-import '../widgets/user_avatar.dart';
 
 class ChatListScreen extends StatefulWidget {
   const ChatListScreen({super.key});
@@ -58,11 +62,78 @@ class _ChatListScreenState extends State<ChatListScreen> {
   }
 }
 
-class ChatsTab extends StatelessWidget {
+class ChatsTab extends ConsumerStatefulWidget {
   const ChatsTab({super.key});
 
   @override
+  ConsumerState<ChatsTab> createState() => _ChatsTabState();
+}
+
+class _ChatsTabState extends ConsumerState<ChatsTab> {
+  List<Contact> _contacts = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadContacts();
+  }
+
+  Future<void> _loadContacts() async {
+    final contacts = await ContactsService.loadContacts();
+    if (mounted) setState(() => _contacts = contacts);
+  }
+
+  Contact? _findContact(String userId) {
+    try {
+      return _contacts.firstWhere((c) => c.id == userId);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final incoming = ref.watch(messagesProvider);
+    final sent = ref.watch(sentMessagesProvider);
+
+    // collect all user IDs that have messages
+    final Map<String, _ChatPreview> chatPreviews = {};
+
+    for (final m in incoming) {
+      final isRead = ref.read(messagesProvider.notifier).isRead(m.messageId);
+      final existing = chatPreviews[m.senderId];
+      if (existing == null || m.receivedAt.isAfter(existing.timestamp)) {
+        chatPreviews[m.senderId] = _ChatPreview(
+          userId: m.senderId,
+          lastMessage: m.plaintext,
+          timestamp: m.receivedAt,
+          unread: (existing?.unread ?? 0) + (isRead ? 0 : 1),
+        );
+      } else if (!isRead) {
+        chatPreviews[m.senderId] = _ChatPreview(
+          userId: existing.userId,
+          lastMessage: existing.lastMessage,
+          timestamp: existing.timestamp,
+          unread: existing.unread + 1,
+        );
+      }
+    }
+
+    for (final m in sent) {
+      final existing = chatPreviews[m.recipientId];
+      if (existing == null || m.sentAt.isAfter(existing.timestamp)) {
+        chatPreviews[m.recipientId] = _ChatPreview(
+          userId: m.recipientId,
+          lastMessage: m.ciphertext,
+          timestamp: m.sentAt,
+          unread: existing?.unread ?? 0,
+        );
+      }
+    }
+
+    final sortedChats = chatPreviews.values.toList()
+      ..sort((a, b) => b.timestamp.compareTo(a.timestamp));
+
     return Scaffold(
       backgroundColor: AppTheme.backgroundPrimary,
       appBar: AppBar(
@@ -79,64 +150,32 @@ class ChatsTab extends StatelessWidget {
           SizedBox(width: 12),
         ],
       ),
-      body: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Container(
-              decoration: BoxDecoration(
-                color: AppTheme.surfaceColor,
-                borderRadius: BorderRadius.circular(30),
+      body: sortedChats.isEmpty
+          ? const Center(
+              child: Text(
+                'No chats yet.\nStart a conversation from Contacts.',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: AppTheme.textSecondary, fontSize: 16),
               ),
-              child: const TextField(
-                style: TextStyle(color: AppTheme.textPrimary),
-                decoration: InputDecoration(
-                  hintText: 'Search',
-                  hintStyle: TextStyle(color: AppTheme.textSecondary),
-                  prefixIcon: Icon(Icons.search, color: AppTheme.textSecondary),
-                  border: InputBorder.none,
-                  contentPadding: EdgeInsets.symmetric(vertical: 12),
-                ),
-              ),
-            ),
-          ),
-          Expanded(
-            child: ListView.builder(
-              itemCount: mockChats.length,
+            )
+          : ListView.builder(
+              itemCount: sortedChats.length,
               itemBuilder: (context, index) {
-                final chat = mockChats[index];
+                final preview = sortedChats[index];
+                final contact = _findContact(preview.userId);
+                final name = contact?.name ?? preview.userId.substring(0, 8);
+                final avatar = contact?.avatar ?? '';
+                final timeStr =
+                    '${preview.timestamp.hour}:${preview.timestamp.minute.toString().padLeft(2, '0')}';
+
                 return ListTile(
                   contentPadding: const EdgeInsets.symmetric(
                     horizontal: 16,
                     vertical: 8,
                   ),
-                  leading: Stack(
-                    children: [
-                      UserAvatar(
-                        avatarPath: chat.avatar,
-                        name: chat.name,
-                      ),
-                      if (chat.isOnline)
-                        Positioned(
-                          bottom: 0,
-                          right: 0,
-                          child: Container(
-                            width: 14,
-                            height: 14,
-                            decoration: BoxDecoration(
-                              color: AppTheme.accentColor,
-                              shape: BoxShape.circle,
-                              border: Border.all(
-                                color: AppTheme.backgroundPrimary,
-                                width: 2,
-                              ),
-                            ),
-                          ),
-                        ),
-                    ],
-                  ),
+                  leading: UserAvatar(avatarPath: avatar, name: name),
                   title: Text(
-                    chat.name,
+                    name,
                     style: const TextStyle(
                       color: AppTheme.textPrimary,
                       fontWeight: FontWeight.bold,
@@ -144,7 +183,7 @@ class ChatsTab extends StatelessWidget {
                     ),
                   ),
                   subtitle: Text(
-                    chat.lastMessage,
+                    preview.lastMessage,
                     style: const TextStyle(
                       color: AppTheme.textSecondary,
                       fontSize: 14,
@@ -157,14 +196,14 @@ class ChatsTab extends StatelessWidget {
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Text(
-                        chat.time,
+                        timeStr,
                         style: const TextStyle(
                           color: AppTheme.textSecondary,
                           fontSize: 12,
                         ),
                       ),
                       const SizedBox(height: 4),
-                      if (chat.unreadCount > 0)
+                      if (preview.unread > 0)
                         Container(
                           padding: const EdgeInsets.all(6),
                           decoration: const BoxDecoration(
@@ -172,7 +211,7 @@ class ChatsTab extends StatelessWidget {
                             shape: BoxShape.circle,
                           ),
                           child: Text(
-                            chat.unreadCount.toString(),
+                            preview.unread.toString(),
                             style: const TextStyle(
                               color: AppTheme.textPrimary,
                               fontSize: 10,
@@ -183,6 +222,15 @@ class ChatsTab extends StatelessWidget {
                     ],
                   ),
                   onTap: () {
+                    final chat = Chat(
+                      id: preview.userId,
+                      name: name,
+                      avatar: avatar,
+                      lastMessage: preview.lastMessage,
+                      time: timeStr,
+                      unreadCount: 0,
+                      messages: [],
+                    );
                     Navigator.push(
                       context,
                       MaterialPageRoute(
@@ -193,9 +241,6 @@ class ChatsTab extends StatelessWidget {
                 );
               },
             ),
-          ),
-        ],
-      ),
       floatingActionButton: FloatingActionButton(
         backgroundColor: AppTheme.accentColor,
         onPressed: () {},
@@ -203,6 +248,20 @@ class ChatsTab extends StatelessWidget {
       ),
     );
   }
+}
+
+class _ChatPreview {
+  final String userId;
+  final String lastMessage;
+  final DateTime timestamp;
+  final int unread;
+
+  _ChatPreview({
+    required this.userId,
+    required this.lastMessage,
+    required this.timestamp,
+    required this.unread,
+  });
 }
 
 class SettingsTab extends StatelessWidget {

@@ -1,6 +1,7 @@
-import 'package:silex/theme/app_theme.dart';
-
 import 'package:flutter/material.dart';
+import 'package:silex/theme/app_theme.dart';
+import '../services/contacts_service.dart';
+import '../models/contact.dart';
 
 class AddContactScreen extends StatefulWidget {
   const AddContactScreen({super.key});
@@ -13,6 +14,7 @@ class _AddContactScreenState extends State<AddContactScreen> {
   final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
   final _phoneController = TextEditingController();
+  bool _isLoading = false;
 
   static const Color backgroundColor = AppTheme.backgroundPrimary;
   static const Color inputColor = AppTheme.inputColor;
@@ -20,6 +22,56 @@ class _AddContactScreenState extends State<AddContactScreen> {
   static const Color textPrimary = AppTheme.textPrimary;
   static const Color textSecondary = AppTheme.textSecondary;
 
+  Future<void> _saveContact() async {
+    if (!_formKey.currentState!.validate()) return;
+
+    setState(() => _isLoading = true);
+
+    try {
+      final userId = await ContactsService.lookupByPhone(
+        _phoneController.text.trim(),
+      );
+
+      if (userId == null) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('User not found on Silex'),
+            backgroundColor: Colors.red,
+          ),
+        );
+        return;
+      }
+
+      final contact = Contact(
+        id: userId,
+        name: _nameController.text.trim(),
+        avatar: '',
+        phoneNumber: _phoneController.text.trim(),
+      );
+
+      await ContactsService.addContact(contact);
+
+      if (!mounted) return;
+      Navigator.pop(context, contact);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Contact added'),
+          backgroundColor: accentColor,
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -66,29 +118,21 @@ class _AddContactScreenState extends State<AddContactScreen> {
                       style: const TextStyle(color: textPrimary),
                       decoration: InputDecoration(
                         labelText: 'Name',
-                        labelStyle:
-                            const TextStyle(color: textSecondary),
+                        labelStyle: const TextStyle(color: textSecondary),
                         filled: true,
                         fillColor: inputColor,
-                        prefixIcon: const Icon(
-                          Icons.person_outline,
-                          color: textSecondary,
-                        ),
+                        prefixIcon: const Icon(Icons.person_outline, color: textSecondary),
                         enabledBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
-                          borderSide:
-                              const BorderSide(color: Colors.transparent),
+                          borderSide: const BorderSide(color: Colors.transparent),
                         ),
                         focusedBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
-                          borderSide:
-                              const BorderSide(color: accentColor, width: 2),
+                          borderSide: const BorderSide(color: accentColor, width: 2),
                         ),
                       ),
                       validator: (value) {
-                        if (value == null || value.isEmpty) {
-                          return 'Please enter a name';
-                        }
+                        if (value == null || value.isEmpty) return 'Please enter a name';
                         return null;
                       },
                     ),
@@ -99,29 +143,24 @@ class _AddContactScreenState extends State<AddContactScreen> {
                       keyboardType: TextInputType.phone,
                       decoration: InputDecoration(
                         labelText: 'Phone Number',
-                        labelStyle:
-                            const TextStyle(color: textSecondary),
+                        hintText: '+521234567890',
+                        labelStyle: const TextStyle(color: textSecondary),
+                        hintStyle: const TextStyle(color: textSecondary),
                         filled: true,
                         fillColor: inputColor,
-                        prefixIcon: const Icon(
-                          Icons.phone_outlined,
-                          color: textSecondary,
-                        ),
+                        prefixIcon: const Icon(Icons.phone_outlined, color: textSecondary),
                         enabledBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
-                          borderSide:
-                              const BorderSide(color: Colors.transparent),
+                          borderSide: const BorderSide(color: Colors.transparent),
                         ),
                         focusedBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
-                          borderSide:
-                              const BorderSide(color: accentColor, width: 2),
+                          borderSide: const BorderSide(color: accentColor, width: 2),
                         ),
                       ),
                       validator: (value) {
-                        if (value == null || value.isEmpty) {
-                          return 'Please enter a phone number';
-                        }
+                        if (value == null || value.isEmpty) return 'Please enter a phone number';
+                        if (!value.startsWith('+')) return 'Include country code (e.g. +52)';
                         return null;
                       },
                     ),
@@ -129,37 +168,28 @@ class _AddContactScreenState extends State<AddContactScreen> {
                     SizedBox(
                       width: double.infinity,
                       child: ElevatedButton(
-                        onPressed: () {
-                          if (_formKey.currentState!.validate()) {
-                            Navigator.pop(context);
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text(
-                                  'Contact added successfully',
-                                  style: TextStyle(color: Colors.white),
-                                ),
-                                backgroundColor: accentColor,
-                              ),
-                            );
-                          }
-                        },
+                        onPressed: _isLoading ? null : _saveContact,
                         style: ElevatedButton.styleFrom(
                           backgroundColor: accentColor,
                           foregroundColor: Colors.white,
-                          padding:
-                              const EdgeInsets.symmetric(vertical: 16),
+                          padding: const EdgeInsets.symmetric(vertical: 16),
                           shape: RoundedRectangleBorder(
-                            borderRadius:
-                                BorderRadius.circular(30),
+                            borderRadius: BorderRadius.circular(30),
                           ),
                         ),
-                        child: const Text(
-                          'Save Contact',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
+                        child: _isLoading
+                            ? const SizedBox(
+                                height: 20,
+                                width: 20,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: Colors.white,
+                                ),
+                              )
+                            : const Text(
+                                'Save Contact',
+                                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                              ),
                       ),
                     ),
                   ],

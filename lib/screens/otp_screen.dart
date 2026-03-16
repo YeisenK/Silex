@@ -3,8 +3,10 @@ import 'package:flutter/services.dart';
 import '../services/auth_service.dart';
 import '../theme/app_theme.dart';
 import '../core/crypto_service.dart';
+import '../core/pin_service.dart';
 import '../services/keys_service.dart';
 import '../services/socket_service.dart';
+import 'create_pin_screen.dart';
 
 class OtpScreen extends StatefulWidget {
   final String phone;
@@ -44,22 +46,33 @@ class _OtpScreenState extends State<OtpScreen> {
     try {
       await AuthService.verifyOtp(widget.phone, _otpController.text.trim());
 
-        //generate and upload keys ONLY if it's your first login
-        final keysAlreadyGenerated = await CryptoService.keysGenerated();
-        if (!keysAlreadyGenerated) {
-          final keyBundle = await CryptoService.generateAllKeys();
-          await KeysService.uploadKeys(keyBundle);
-        }
+      // generate and upload keys ONLY if it's your first login
+      final keysAlreadyGenerated = await CryptoService.keysGenerated();
+      if (!keysAlreadyGenerated) {
+        final keyBundle = await CryptoService.generateAllKeys();
+        await KeysService.uploadKeys(keyBundle);
+      }
 
-        if (!mounted) return;
+      if (!mounted) return;
 
+      // check if PIN is already configured (returning user)
+      final hasPinConfigured = await PinService.isPinConfigured();
+
+      if (hasPinConfigured) {
+        // returning user — connect and go home
         await SocketService.connect();
         Navigator.of(context).pushNamedAndRemoveUntil('/home', (_) => false);
+      } else {
+        // new user — go to create PIN (keys are still in plaintext in storage)
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(builder: (_) => const CreatePinScreen()),
+        );
+      }
     } catch (e) {
       if (!mounted) return;
       setState(() => _isLoading = false);
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Invalid code. Try again.')),
+        const SnackBar(content: Text('Invalid code. Try again.')),
       );
     }
   }

@@ -46,4 +46,21 @@ class MessageService {
     );
     return response.data as List<dynamic>;
   }
+  
+}
+
+class SentMessage {
+  final String messageId;
+  final String recipientId;
+  final String ciphertext;
+  final String time;
+  final DateTime sentAt;
+
+  SentMessage({
+    required this.messageId,
+    required this.recipientId,
+    required this.ciphertext,
+    required this.time,
+    DateTime? sentAt,
+  }) : sentAt = sentAt ?? DateTime.now();
 }

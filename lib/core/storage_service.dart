@@ -50,4 +50,14 @@ class StorageService {
     if (value == null) return null;
     return base64Decode(value);
   }
+
+  static Future<void> clearSessionKeys() async {
+    final all = await _storage.readAll();
+    for (final key in all.keys) {
+      if (key.startsWith('session_')) {
+        await _storage.delete(key: key);
+      }
+    }
+  }
+
 }

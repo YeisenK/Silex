@@ -1,15 +1,18 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:silex/core/crypto_service.dart';
 import 'package:silex/models/message.dart';
 import 'package:silex/services/keys_service.dart';
+import 'package:silex/services/message_service.dart' hide SentMessage;
 import 'package:silex/theme/app_theme.dart';
 import '../widgets/chat_bubble.dart';
 import '../widgets/user_avatar.dart';
 import '../models/chat.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/message_provider.dart';
-import '../services/message_service.dart';
 import '../core/storage_service.dart';
+import 'safety_number_screen.dart';
 
 class ChatScreen extends ConsumerStatefulWidget {
   final Chat chat;
@@ -149,13 +152,43 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
             ),
           ],
         ),
-        actions: const [
-          Icon(Icons.call, color: textPrimary),
-          SizedBox(width: 12),
-          Icon(Icons.search, color: textPrimary),
-          SizedBox(width: 12),
-          Icon(Icons.more_vert, color: textPrimary),
-          SizedBox(width: 12),
+        actions: [
+          const Icon(Icons.call, color: textPrimary),
+          const SizedBox(width: 12),
+          const Icon(Icons.search, color: textPrimary),
+          const SizedBox(width: 12),
+          PopupMenuButton<String>(
+            icon: const Icon(Icons.more_vert, color: textPrimary),
+            color: secondaryBackground,
+            onSelected: (value) {
+              if (value == 'verify') {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => SafetyNumberScreen(
+                      contactId: widget.chat.id,
+                      contactName: widget.chat.name,
+                    ),
+                  ),
+                );
+              }
+            },
+            itemBuilder: (_) => [
+              const PopupMenuItem(
+                value: 'verify',
+                child: Row(
+                  children: [
+                    Icon(Icons.verified_user_outlined,
+                        color: AppTheme.textSecondary, size: 20),
+                    SizedBox(width: 12),
+                    Text('Verify identity',
+                        style: TextStyle(color: AppTheme.textPrimary)),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(width: 4),
         ],
       ),
       body: Column(
@@ -182,20 +215,31 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                       .toList();
 
                   final allMessages = [
-                    ...widget.chat.messages,
-                    ...incomingMessages.map((m) => Message(
-                          id: m.messageId,
-                          text: m.ciphertext,
-                          time: '${m.receivedAt.hour}:${m.receivedAt.minute.toString().padLeft(2, '0')}',
-                          isSentByMe: false,
+                    ...widget.chat.messages
+                        .map((m) => _TimedMessage(m, DateTime(2000))),
+                    ...incomingMessages.map((m) => _TimedMessage(
+                          Message(
+                            id: m.messageId,
+                            text: m.plaintext,
+                            time:
+                                '${m.receivedAt.hour}:${m.receivedAt.minute.toString().padLeft(2, '0')}',
+                            isSentByMe: false,
+                          ),
+                          m.receivedAt,
                         )),
-                    ...sentMessages.map((m) => Message(
-                          id: m.messageId,
-                          text: m.ciphertext,
-                          time: m.time,
-                          isSentByMe: true,
+                    ...sentMessages.map((m) => _TimedMessage(
+                          Message(
+                            id: m.messageId,
+                            text: m.ciphertext,
+                            time: m.time,
+                            isSentByMe: true,
+                          ),
+                          m.sentAt,
                         )),
                   ];
+
+                  allMessages
+                      .sort((a, b) => a.timestamp.compareTo(b.timestamp));
 
                   return ListView.builder(
                     controller: _scrollController,
@@ -225,10 +269,10 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                         );
                       }
 
-                      final message = allMessages[index - 1];
+                      final item = allMessages[index - 1];
                       return ChatBubble(
-                        message: message,
-                        isSentByMe: message.isSentByMe,
+                        message: item.message,
+                        isSentByMe: item.message.isSentByMe,
                       );
                     },
                   );
@@ -302,4 +346,18 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     _scrollController.dispose();
     super.dispose();
   }
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.read(messagesProvider.notifier).markAsRead(widget.chat.id);
+    });
+  }
+}
+
+class _TimedMessage {
+  final Message message;
+  final DateTime timestamp;
+  _TimedMessage(this.message, this.timestamp);
 }
